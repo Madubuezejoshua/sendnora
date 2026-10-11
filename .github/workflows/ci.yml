@@ -1,0 +1,123 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_ENV: test
+  DATABASE_URL: postgresql://invoicetap:invoicetap@localhost:5432/invoicetap?schema=public
+  DIRECT_DATABASE_URL: postgresql://invoicetap:invoicetap@localhost:5432/invoicetap?schema=public
+  AUTH_SECRET: ci-only-secret-value-not-for-real-use-000000
+  API_TOKEN_SECRET: ci-only-secret-value-not-for-real-use-000000
+  APP_ENCRYPTION_KEY: ci-only-secret-value-not-for-real-use-000000
+  CRON_SECRET: ci-only-cron-secret-000000
+  NEXT_PUBLIC_APP_URL: http://localhost:3000
+  NEXT_PUBLIC_API_URL: http://localhost:4000
+  API_PORT: 4000
+  CORS_ORIGINS: http://localhost:3000
+
+jobs:
+  lint-typecheck-build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: invoicetap
+          POSTGRES_PASSWORD: invoicetap
+          POSTGRES_DB: invoicetap
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U invoicetap"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Generate Prisma client
+        run: npm run db:generate --workspace=@invoicetap/database
+
+      - name: Build @invoicetap/database
+        run: npm run build --workspace=@invoicetap/database
+
+      - name: Apply migrations
+        run: npm run db:migrate:deploy --workspace=@invoicetap/database
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit + integration tests
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+      - name: Dependency audit (non-blocking)
+        run: npm audit --omit=dev || true
+
+  playwright-e2e:
+    runs-on: ubuntu-latest
+    needs: lint-typecheck-build
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: invoicetap
+          POSTGRES_PASSWORD: invoicetap
+          POSTGRES_DB: invoicetap
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U invoicetap"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client and migrate
+        run: |
+          npm run db:generate --workspace=@invoicetap/database
+          npm run db:migrate:deploy --workspace=@invoicetap/database
+          npm run db:seed --workspace=@invoicetap/database
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        run: npm run build
+
+      - name: Run Playwright E2E suite
+        run: npm run test:e2e --workspace=@invoicetap/web
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7

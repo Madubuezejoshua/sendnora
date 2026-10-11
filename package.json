@@ -1,0 +1,46 @@
+{
+  "name": "invoicetap",
+  "version": "0.1.0",
+  "private": true,
+  "description": "InvoiceTap monorepo — quotes, invoices, receipts, payments and WhatsApp delivery for freelancers and small businesses.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@invoicetap/api & npm run dev --workspace=@invoicetap/web",
+    "dev:web": "npm run dev --workspace=@invoicetap/web",
+    "dev:api": "npm run dev --workspace=@invoicetap/api",
+    "build": "npm run build --workspace=@invoicetap/shared && npm run build --workspace=@invoicetap/ui && npm run build --workspace=@invoicetap/database && npm run build --workspace=@invoicetap/api && npm run build --workspace=@invoicetap/web",
+    "build:api": "npm run build --workspace=@invoicetap/shared && npm run build --workspace=@invoicetap/database && npm run build --workspace=@invoicetap/api",
+    "build:web": "npm run build --workspace=@invoicetap/shared && npm run build --workspace=@invoicetap/ui && npm run build --workspace=@invoicetap/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:unit": "vitest run",
+    "test:e2e": "npm run test:e2e --workspace=@invoicetap/web --if-present",
+    "db:generate": "npm run db:generate --workspace=@invoicetap/database",
+    "db:migrate": "npm run db:migrate --workspace=@invoicetap/database",
+    "db:migrate:deploy": "npm run db:migrate:deploy --workspace=@invoicetap/database",
+    "db:seed": "npm run db:seed --workspace=@invoicetap/database",
+    "db:seed:demo": "npm run db:seed:demo --workspace=@invoicetap/database",
+    "db:studio": "npm run db:studio --workspace=@invoicetap/database"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.15.0",
+    "@typescript-eslint/parser": "^8.15.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.3",
+    "prettier-plugin-tailwindcss": "^0.6.8",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}

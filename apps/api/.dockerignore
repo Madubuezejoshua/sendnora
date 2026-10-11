@@ -1,0 +1,11 @@
+node_modules
+dist
+.dev-storage
+.dev-emails
+.env
+.env.local
+*.log
+coverage
+.git
+.github
+apps/web

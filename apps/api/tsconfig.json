@@ -1,0 +1,9 @@
+{
+  "extends": "@invoicetap/config/tsconfig/node.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "noEmit": true,
+    "jsx": "react-jsx"
+  },
+  "include": ["src", "tests"]
+}
