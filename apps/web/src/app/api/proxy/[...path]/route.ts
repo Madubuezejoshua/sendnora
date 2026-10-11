@@ -22,7 +22,7 @@ async function forward(req: NextRequest, path: string[]): Promise<NextResponse> 
   const env = getWebEnv();
   const baseUrl = env.API_INTERNAL_URL ?? env.NEXT_PUBLIC_API_URL;
   const search = req.nextUrl.search;
-  const targetUrl = `${baseUrl}/api/v1/${path.join('/')}${search}`;
+  const targetUrl = `${baseUrl}/api/console/${path.join('/')}${search}`;
 
   const hasBody = !['GET', 'HEAD'].includes(req.method);
   const contentType = req.headers.get('content-type') ?? '';

@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
-import { verifyApiToken } from '@invoicetap/shared/server/api-token';
-import { AppError } from '@invoicetap/shared';
-import { parseApiEnv } from '@invoicetap/config/env';
+import { verifyApiToken } from '@sendnaro/shared/server/api-token';
+import { AppError } from '@sendnaro/shared';
+import { parseApiEnv } from '@sendnaro/config/env';
 
 /**
  * Verifies the short-lived API token minted by apps/web (see

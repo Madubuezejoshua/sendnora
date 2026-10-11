@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import { AppError, roleHasPermission, type Permission } from '@invoicetap/shared';
+import { AppError, roleHasPermission, type Permission } from '@sendnaro/shared';
 
 /** Requires the caller's workspace role to have the given permission. Must run after requireWorkspace. */
 export function requirePermission(permission: Permission) {

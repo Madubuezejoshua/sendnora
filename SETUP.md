@@ -51,19 +51,19 @@ instance instead (a free Neon branch works well for this).
 ## 5. Set up the database
 
 ```bash
-npm run db:generate --workspace=@invoicetap/database   # generates the Prisma client
-npm run build --workspace=@invoicetap/database          # compiles the package (needed by apps/api — see below)
-npm run db:migrate --workspace=@invoicetap/database     # creates tables
-npm run db:seed --workspace=@invoicetap/database        # subscription plans + document templates
-npm run db:seed:demo --workspace=@invoicetap/database    # demo workspace with sample data
+npm run db:generate --workspace=@sendnaro/database   # generates the Prisma client
+npm run build --workspace=@sendnaro/database          # compiles the package (needed by apps/api — see below)
+npm run db:migrate --workspace=@sendnaro/database     # creates tables
+npm run db:seed --workspace=@sendnaro/database        # subscription plans + document templates
+npm run db:seed:demo --workspace=@sendnaro/database    # demo workspace with sample data
 ```
 
-`@invoicetap/database` is the one workspace package that ships a real
+`@sendnaro/database` is the one workspace package that ships a real
 compiled output rather than raw TypeScript — it re-exports the generated
 Prisma client, whose runtime can't be bundled by esbuild for apps/api's
 production build (see the comment in `apps/api/tsup.config.ts`), so it
 needs to be resolvable by plain Node like any other npm package.
-Re-run `npm run build --workspace=@invoicetap/database` after pulling
+Re-run `npm run build --workspace=@sendnaro/database` after pulling
 changes to `packages/database/src/*` or the Prisma schema.
 
 To also seed a platform admin account, set `SEED_ADMIN_EMAIL` and
@@ -78,7 +78,7 @@ npm run dev
 - Web app: http://localhost:3000
 - API: http://localhost:4000 (health check at `/health`)
 
-Log in with the demo account: `demo@invoicetap.app` / `DemoPassword123!`
+Log in with the demo account: `demo@sendnaro.com` / `DemoPassword123!`
 (seeded in step 5), or register a new account at
 http://localhost:3000/register — since `EMAIL_PROVIDER=dev` by default,
 the verification email is written to `apps/api/.dev-emails/*.html` and
@@ -98,7 +98,7 @@ npm run build             # production build, every workspace
 ## 8. Resetting your local database
 
 ```bash
-npm run db:reset --workspace=@invoicetap/database
+npm run db:reset --workspace=@sendnaro/database
 ```
 
 This drops and recreates the database from migrations (with a

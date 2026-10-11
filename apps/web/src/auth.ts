@@ -4,10 +4,10 @@ import Google from 'next-auth/providers/google';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { authenticator } from 'otplib';
 import { randomUUID } from 'node:crypto';
-import { prisma } from '@invoicetap/database';
-import { verifyPassword } from '@invoicetap/database/password';
-import { decryptSecret } from '@invoicetap/database/encryption';
-import { loginSchema } from '@invoicetap/shared';
+import { prisma } from '@sendnaro/database';
+import { verifyPassword } from '@sendnaro/database/password';
+import { decryptSecret } from '@sendnaro/database/encryption';
+import { loginSchema } from '@sendnaro/shared';
 import { getWebEnv } from './lib/env.js';
 import { authConfig } from './auth.config.js';
 

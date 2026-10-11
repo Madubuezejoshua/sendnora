@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import { timingSafeEqual } from 'node:crypto';
-import { AppError } from '@invoicetap/shared';
-import { parseApiEnv } from '@invoicetap/config/env';
+import { AppError } from '@sendnaro/shared';
+import { parseApiEnv } from '@sendnaro/config/env';
 
 /**
  * Protects scheduled-job endpoints (recurring invoice generation, reminder

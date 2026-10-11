@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
-import { prisma } from '@invoicetap/database';
-import { AppError } from '@invoicetap/shared';
+import { prisma } from '@sendnaro/database';
+import { AppError } from '@sendnaro/shared';
 
 /**
  * Establishes tenant context for the request. The workspace id comes ONLY

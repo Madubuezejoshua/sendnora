@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { prisma } from '@invoicetap/database';
+import { prisma } from '@sendnaro/database';
 import { app, auth, drain, invoiceBody, makeBusiness, makeKey } from './sn-helpers.js';
 import { getStorageProvider } from '../../src/services/storage/storage.service.js';
 

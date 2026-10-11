@@ -1,4 +1,4 @@
-import { prisma } from '@invoicetap/database';
+import { prisma } from '@sendnaro/database';
 import { logger } from '../config/logger.js';
 import { getStorageProvider } from '../services/storage/storage.service.js';
 import { purgeExpiredIdempotency } from './idempotency.js';

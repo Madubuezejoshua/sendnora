@@ -1,4 +1,4 @@
-import { prisma } from '@invoicetap/database';
+import { prisma } from '@sendnaro/database';
 import {
   AppError,
   assertQuoteTransition,
@@ -6,7 +6,7 @@ import {
   type CreateQuoteInput,
   type PaginationQuery,
   type QuoteStatus,
-} from '@invoicetap/shared';
+} from '@sendnaro/shared';
 import { allocateDocumentNumber } from '../../services/numbering.service.js';
 import { computeAndShapeLineItems } from '../../services/line-items.service.js';
 import { paginate, toSkipTake } from '../../services/pagination.js';

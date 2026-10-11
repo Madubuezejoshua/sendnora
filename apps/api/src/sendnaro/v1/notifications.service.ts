@@ -1,5 +1,5 @@
-import { prisma } from '@invoicetap/database';
-import { AppError, getCurrency, isSupportedCurrency } from '@invoicetap/shared';
+import { prisma } from '@sendnaro/database';
+import { AppError, getCurrency, isSupportedCurrency } from '@sendnaro/shared';
 import type { SnContext } from '../context.js';
 import { assertCanSend } from '../entitlement.js';
 import { withIdempotency } from '../idempotency.js';

@@ -1,8 +1,8 @@
 import { hash, verify } from '@node-rs/argon2';
 
 /**
- * Password hashing (Argon2id). Lives in @invoicetap/database — a
- * server-only package — rather than @invoicetap/shared, so it can never be
+ * Password hashing (Argon2id). Lives in @sendnaro/database — a
+ * server-only package — rather than @sendnaro/shared, so it can never be
  * accidentally pulled into a client-side bundle. Both apps/web (Auth.js
  * Credentials provider) and apps/api (registration/password-change) import
  * this module directly.

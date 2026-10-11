@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { prisma } from '@invoicetap/database';
-import { emailSchema } from '@invoicetap/shared';
+import { prisma } from '@sendnaro/database';
+import { emailSchema } from '@sendnaro/shared';
 import { validateBody } from '../../middleware/validate.js';
 import { contactFormRateLimit } from '../../middleware/rate-limit.js';
 import { requireAuth } from '../../middleware/auth.js';

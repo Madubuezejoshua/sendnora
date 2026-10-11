@@ -1,6 +1,6 @@
 import type { Config } from 'tailwindcss';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const uiPreset = require('@invoicetap/ui/tailwind-preset');
+const uiPreset = require('@sendnaro/ui/tailwind-preset');
 
 const config: Config = {
   darkMode: ['class'],

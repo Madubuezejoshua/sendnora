@@ -80,13 +80,13 @@ deliberately preserves the _local_ hour-of-day across DST transitions).
 
 ```bash
 # Create and apply a new migration during development
-npm run db:migrate --workspace=@invoicetap/database
+npm run db:migrate --workspace=@sendnaro/database
 
 # Apply existing migrations in CI/production (never creates new ones)
-npm run db:migrate:deploy --workspace=@invoicetap/database
+npm run db:migrate:deploy --workspace=@sendnaro/database
 
 # Regenerate the Prisma client after any schema change
-npm run db:generate --workspace=@invoicetap/database
+npm run db:generate --workspace=@sendnaro/database
 ```
 
 `prisma migrate reset` (via `npm run db:reset`) drops and recreates the
@@ -100,7 +100,7 @@ against and generate SQL, and no Postgres instance was reachable in the
 environment this codebase was built in (see HANDOVER.md/TESTING.md — the
 same constraint that blocked running the integration test suite). Whoever
 first connects this to a real database must run
-`npm run db:migrate --workspace=@invoicetap/database` once, locally, to
+`npm run db:migrate --workspace=@sendnaro/database` once, locally, to
 generate the initial migration from the current `schema.prisma` and commit
 the resulting `prisma/migrations/` directory — do this _before_ the first
 `migrate:deploy` in CI/production, which only applies migrations that
@@ -108,17 +108,17 @@ already exist and will do nothing on an empty directory.
 
 ## Seeding
 
-- `npm run db:seed --workspace=@invoicetap/database` — safe in every
+- `npm run db:seed --workspace=@sendnaro/database` — safe in every
   environment, including production. Seeds `SubscriptionPlan` rows from
   `packages/shared/src/constants/plans.ts`, built-in `DocumentTemplate`
   rows, and (only if `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD` are set) the
   first platform admin.
-- `npm run db:seed:demo --workspace=@invoicetap/database` — **refuses to
+- `npm run db:seed:demo --workspace=@sendnaro/database` — **refuses to
   run when `NODE_ENV=production`**. Creates a fully-populated demo
   workspace (`isDemo: true`) with sample customers, products, a sent
   quote, a paid invoice + receipt, and an overdue invoice, so the product
   can be explored end-to-end before any real customer data exists. Login:
-  `demo@invoicetap.app` / `DemoPassword123!` (change this in
+  `demo@sendnaro.com` / `DemoPassword123!` (change this in
   `packages/database/prisma/seed-demo.ts` if you redistribute the repo).
 
 ## Local development database

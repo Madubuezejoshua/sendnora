@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import axios from 'axios';
-import type { ApiEnv } from '@invoicetap/config/env';
+import type { ApiEnv } from '@sendnaro/config/env';
 
 /**
  * Meta WhatsApp Cloud API adapter — prepared but inactive until

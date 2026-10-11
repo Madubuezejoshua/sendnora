@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
-import { prisma } from '@invoicetap/database';
-import { AppError } from '@invoicetap/shared';
-import { parseApiEnv } from '@invoicetap/config/env';
+import { prisma } from '@sendnaro/database';
+import { AppError } from '@sendnaro/shared';
+import { parseApiEnv } from '@sendnaro/config/env';
 
 /**
  * Telegram bots cannot message a user first: the customer opens

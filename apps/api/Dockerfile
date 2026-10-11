@@ -1,18 +1,18 @@
 # syntax=docker/dockerfile:1
 
 # ==============================================================================
-# InvoiceTap API — production image (Railway-compatible).
+# Sendnaro API — production image (Railway-compatible).
 #
 # Multi-stage build:
 #   1. deps    — install the full workspace dependency graph once (cached).
-#   2. build   — generate + compile the Prisma-dependent @invoicetap/database
+#   2. build   — generate + compile the Prisma-dependent @sendnaro/database
 #                package, then bundle apps/api with tsup (see
 #                apps/api/tsup.config.ts for what's bundled in vs. left as a
 #                real node_modules package and why).
 #   3. runtime — copy only what's needed to run: the bundle, node_modules
 #                (kept whole — Prisma's query engine binary and argon2's
 #                native binary must resolve from real files on disk), and
-#                @invoicetap/database's compiled output + Prisma schema.
+#                @sendnaro/database's compiled output + Prisma schema.
 # ==============================================================================
 
 FROM node:22-alpine AS base
@@ -31,16 +31,16 @@ RUN npm ci
 
 FROM deps AS build
 COPY . .
-RUN npm run db:generate --workspace=@invoicetap/database
-# @invoicetap/database ships a real compiled output (unlike the other
-# @invoicetap/* packages) — see apps/api/tsup.config.ts for why, and build
+RUN npm run db:generate --workspace=@sendnaro/database
+# @sendnaro/database ships a real compiled output (unlike the other
+# @sendnaro/* packages) — see apps/api/tsup.config.ts for why, and build
 # it before apps/api so the latter's external import resolves at runtime.
-RUN npm run build --workspace=@invoicetap/database
-RUN npm run build --workspace=@invoicetap/api
+RUN npm run build --workspace=@sendnaro/database
+RUN npm run build --workspace=@sendnaro/api
 
 FROM base AS runtime
 ENV NODE_ENV=production
-RUN addgroup -S invoicetap && adduser -S invoicetap -G invoicetap
+RUN addgroup -S sendnaro && adduser -S sendnaro -G sendnaro
 
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./package.json
@@ -51,7 +51,7 @@ COPY --from=build /app/packages/database/prisma ./packages/database/prisma
 COPY --from=build /app/apps/api/dist ./apps/api/dist
 COPY --from=build /app/apps/api/package.json ./apps/api/package.json
 
-USER invoicetap
+USER sendnaro
 EXPOSE 4000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \

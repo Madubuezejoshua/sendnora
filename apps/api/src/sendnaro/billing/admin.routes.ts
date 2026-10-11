@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { prisma } from '@invoicetap/database';
-import { AppError, isSupportedCurrency } from '@invoicetap/shared';
+import { prisma } from '@sendnaro/database';
+import { AppError, isSupportedCurrency } from '@sendnaro/shared';
 import { requireAuth } from '../../middleware/auth.js';
 import { requirePlatformAdmin } from '../../middleware/authorize.js';
 import { writeAuditLog } from '../../services/audit.service.js';
@@ -171,6 +171,32 @@ sendnaroAdminRouter.get('/admin/audit', ...guard, async (_req, res, next) => {
       take: 100,
     });
     res.json({ data: rows });
+  } catch (err) {
+    next(err);
+  }
+});
+
+sendnaroAdminRouter.get('/admin/overview', ...guard, async (_req, res, next) => {
+  try {
+    const since = new Date(Date.now() - 7 * 86_400_000);
+    const [users, businesses, activeKeys, entitlements, byStatus, deadJobs] = await Promise.all([
+      prisma.user.count(),
+      prisma.workspace.count({ where: { deletedAt: null } }),
+      prisma.apiKey.count({ where: { revokedAt: null } }),
+      prisma.entitlement.groupBy({ by: ['source'], where: { revokedAt: null }, _count: true }),
+      prisma.delivery.groupBy({ by: ['environment', 'status'], where: { createdAt: { gte: since } }, _count: true }),
+      prisma.outboxEvent.count({ where: { status: 'DEAD' } }),
+    ]);
+    res.json({
+      data: {
+        users,
+        businesses,
+        activeKeys,
+        entitlements: entitlements.map((e) => ({ source: e.source, count: e._count })),
+        deliveriesLast7Days: byStatus.map((d) => ({ environment: d.environment.toLowerCase(), status: d.status.toLowerCase(), count: d._count })),
+        deadJobs,
+      },
+    });
   } catch (err) {
     next(err);
   }

@@ -182,13 +182,13 @@ renders all 46 routes.
 - **Legal page content is template boilerplate**, explicitly flagged on
   each page and in DATA_ROOM_CHECKLIST.md, not reviewed by counsel.
 - **A known, environment-specific build quirk on some Windows
-  machines**: `npm run build --workspace=@invoicetap/web` can hit an
+  machines**: `npm run build --workspace=@sendnaro/web` can hit an
   `EPERM` scanning a legacy Windows user-profile junction
   (`Application Data`/`Cookies`) — unrelated to this codebase, doesn't
   occur on Linux (i.e. not on Vercel/Railway/CI). See README.md's
   Troubleshooting section for the workaround.
 
-## Rebrand checklist ("InvoiceTap" is a working name)
+## Rebrand checklist ("Sendnaro" is a working name)
 
 1. Edit `packages/shared/src/branding.ts` — product name, tagline,
    description, domain, support/sales emails, social handles, brand
@@ -200,7 +200,7 @@ renders all 46 routes.
    `branding.ts` to match new ones).
 3. Update `apps/web/public/og-image.png` (referenced in
    `app/layout.tsx`'s metadata but not currently present — add one).
-4. Search for the literal string `"InvoiceTap"` outside `branding.ts` —
+4. Search for the literal string `"Sendnaro"` outside `branding.ts` —
    it should only appear in documentation files (this repo's own docs),
    never in application code.
 5. Update `LICENSE`'s legal entity name, and the demo seed workspace

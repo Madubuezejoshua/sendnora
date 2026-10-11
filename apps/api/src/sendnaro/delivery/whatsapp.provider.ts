@@ -1,6 +1,6 @@
-import { prisma, type ApiEnvironment } from '@invoicetap/database';
-import { decryptSecret } from '@invoicetap/database/encryption';
-import { parseApiEnv } from '@invoicetap/config/env';
+import { prisma, type ApiEnvironment } from '@sendnaro/database';
+import { decryptSecret } from '@sendnaro/database/encryption';
+import { parseApiEnv } from '@sendnaro/config/env';
 import type { ChannelProvider, ProviderOutcome, SendRequest } from './provider.js';
 
 /**

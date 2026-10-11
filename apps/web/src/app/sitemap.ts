@@ -1,20 +1,6 @@
 import type { MetadataRoute } from 'next';
 
-const MARKETING_PATHS = [
-  '',
-  '/features',
-  '/pricing',
-  '/templates',
-  '/security',
-  '/faq',
-  '/about',
-  '/contact',
-  '/privacy',
-  '/terms',
-  '/refund-policy',
-  '/cookie-policy',
-  '/acceptable-use',
-];
+const MARKETING_PATHS = ['', '/docs', '/pricing', '/contact', '/privacy', '/terms'];
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';

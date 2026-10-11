@@ -2,7 +2,7 @@
 
 import { signOut } from 'next-auth/react';
 import Link from 'next/link';
-import { CreditCard, KeyRound, LogOut, Settings, User as UserIcon, Users } from 'lucide-react';
+import { LogOut, ShieldCheck, User as UserIcon } from 'lucide-react';
 import {
   Avatar,
   DropdownMenu,
@@ -11,12 +11,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@invoicetap/ui';
+} from '@sendnaro/ui';
 
-export function UserMenu({ name, email }: { name: string; email: string }) {
+export function UserMenu({ name, email, isPlatformAdmin }: { name: string; email: string; isPlatformAdmin?: boolean }) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="focus-visible:ring-ring rounded-full focus-visible:outline-none focus-visible:ring-2">
+      <DropdownMenuTrigger
+        aria-label="Account menu"
+        className="focus-visible:ring-ring rounded-full focus-visible:outline-none focus-visible:ring-2"
+      >
         <Avatar name={name || email} size="sm" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
@@ -26,33 +29,20 @@ export function UserMenu({ name, email }: { name: string; email: string }) {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/settings/profile">
-            <UserIcon className="size-4" /> Profile
+          <Link href="/console/settings?tab=security">
+            <UserIcon className="size-4" /> Account security
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/settings/business">
-            <Settings className="size-4" /> Workspace settings
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/settings/team">
-            <Users className="size-4" /> Team
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/settings/billing">
-            <CreditCard className="size-4" /> Billing
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/settings/api-keys">
-            <KeyRound className="size-4" /> API keys
-          </Link>
-        </DropdownMenuItem>
+        {isPlatformAdmin && (
+          <DropdownMenuItem asChild>
+            <Link href="/admin">
+              <ShieldCheck className="size-4" /> Platform admin
+            </Link>
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onSelect={() => signOut({ callbackUrl: '/' })}>
-          <LogOut className="size-4" /> Log out
+        <DropdownMenuItem onSelect={() => void signOut({ callbackUrl: '/' })}>
+          <LogOut className="size-4" /> Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

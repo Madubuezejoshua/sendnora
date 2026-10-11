@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
-import { AppError } from '@invoicetap/shared';
+import { AppError } from '@sendnaro/shared';
 import { logger } from '../../config/logger.js';
 import { RateLimitedError } from '../limits.js';
 

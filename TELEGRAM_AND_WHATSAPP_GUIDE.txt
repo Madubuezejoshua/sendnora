@@ -1,9 +1,9 @@
-INVOICETAP - TELEGRAM & WHATSAPP DELIVERY GUIDE
+SENDNARO - TELEGRAM & WHATSAPP DELIVERY GUIDE
 ================================================
 
 PART 1. WHAT THIS DOES
 ----------------------
-InvoiceTap can deliver invoice links (and payment reminders) to a customer over
+Sendnaro can deliver invoice links (and payment reminders) to a customer over
 two chat channels, in addition to email.
 
   WhatsApp  Level 1  "Click-to-chat": always on, needs NO credentials. The app
@@ -20,7 +20,7 @@ two chat channels, in addition to email.
 
 PART 2. USING IT DAY TO DAY (for a business owner / staff member)
 -----------------------------------------------------------------
-1. Log in at https://invoicetap-web.vercel.app and select your workspace.
+1. Log in at https://sendnaro-web.vercel.app and select your workspace.
 2. Add the customer (Customers > New). For WhatsApp, fill the "WhatsApp
    number" field with the full international number (e.g. +234 801 234 5678).
 3. Create an invoice (Invoices > New invoice), save it, then click
@@ -95,7 +95,7 @@ Security properties
 
 PART 5. ADDING IT TO SOMEONE ELSE'S SYSTEM / ENVIRONMENT
 --------------------------------------------------------
-There are three ways to put InvoiceTap to work for another business. Pick one.
+There are three ways to put Sendnaro to work for another business. Pick one.
 
 OPTION A - Give them a workspace on your hosted install (simplest)
   1. They register at /register and verify their email.
@@ -121,11 +121,11 @@ OPTION B - Deploy their OWN copy (white-label / separate data)
        NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_API_URL, API_INTERNAL_URL, CORS_ORIGINS
        SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD   (12+ chars, no '#')
   4. Create the tables and seed:
-       npm run db:migrate:deploy --workspace=@invoicetap/database
-       npm run db:seed --workspace=@invoicetap/database
+       npm run db:migrate:deploy --workspace=@sendnaro/database
+       npm run db:seed --workspace=@sendnaro/database
   5. Create two Vercel projects from the same repo:
-       invoicetap-api  -> root directory apps/api   (has its own vercel.json)
-       invoicetap-web  -> root directory apps/web   (has its own vercel.json)
+       sendnaro-api  -> root directory apps/api   (has its own vercel.json)
+       sendnaro-web  -> root directory apps/web   (has its own vercel.json)
      Add the environment variables to each, then deploy each with
        vercel deploy --prod
      (API needs the DB, secrets, B2, email and payment keys; WEB needs the DB,

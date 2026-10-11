@@ -1,7 +1,7 @@
-import { prisma } from '@invoicetap/database';
-import { decryptSecret } from '@invoicetap/database/encryption';
-import { AppError, getCurrency } from '@invoicetap/shared';
-import { parseApiEnv } from '@invoicetap/config/env';
+import { prisma } from '@sendnaro/database';
+import { decryptSecret } from '@sendnaro/database/encryption';
+import { AppError, getCurrency } from '@sendnaro/shared';
+import { parseApiEnv } from '@sendnaro/config/env';
 import { PaystackProvider } from './paystack.provider.js';
 import { FlutterwaveProvider } from './flutterwave.provider.js';
 import type { PaymentGatewayProvider } from './provider.interface.js';

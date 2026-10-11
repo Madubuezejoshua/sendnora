@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { AppError } from '@invoicetap/shared';
-import { parseApiEnv } from '@invoicetap/config/env';
+import { AppError } from '@sendnaro/shared';
+import { parseApiEnv } from '@sendnaro/config/env';
 
 /**
  * Gateway used ONLY for Sendnaro's own one-time activation payment, on the platform's Paystack

@@ -1,4 +1,4 @@
-import { prisma, type Prisma } from '@invoicetap/database';
+import { prisma, type Prisma } from '@sendnaro/database';
 
 export interface AuditLogInput {
   workspaceId?: string;

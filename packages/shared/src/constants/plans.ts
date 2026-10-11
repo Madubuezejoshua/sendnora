@@ -45,7 +45,7 @@ export const PLANS: Record<PlanCode, PlanDefinition> = {
   FREE: {
     code: 'FREE',
     name: 'Free',
-    description: 'Try InvoiceTap with a small number of invoices and customers.',
+    description: 'Try Sendnaro with a small number of invoices and customers.',
     monthlyPriceMinorUnits: 0,
     yearlyPriceMinorUnits: 0,
     currency: 'USD',

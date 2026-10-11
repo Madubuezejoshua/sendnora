@@ -39,7 +39,64 @@ function ensureFontsRegistered(): void {
       },
     ],
   });
+  // Latin Extended (e.g. ń, ǹ, ş). react-pdf has no per-glyph fallback, so <Mixed> switches font per run.
+  Font.register({
+    family: 'Noto Sans Ext',
+    fonts: [
+      {
+        src: requireFont.resolve('@fontsource/noto-sans/files/noto-sans-latin-ext-400-normal.woff'),
+        fontWeight: 400,
+      },
+      {
+        src: requireFont.resolve('@fontsource/noto-sans/files/noto-sans-latin-ext-700-normal.woff'),
+        fontWeight: 700,
+      },
+    ],
+  });
+  // Vietnamese block (U+1EA0-1EF9): includes Yoruba/Igbo dotted letters such as Ọ, Ẹ, Ị, Ụ.
+  Font.register({
+    family: 'Noto Sans Vi',
+    fonts: [
+      {
+        src: requireFont.resolve('@fontsource/noto-sans/files/noto-sans-vietnamese-400-normal.woff'),
+        fontWeight: 400,
+      },
+      {
+        src: requireFont.resolve('@fontsource/noto-sans/files/noto-sans-vietnamese-700-normal.woff'),
+        fontWeight: 700,
+      },
+    ],
+  });
   fontsRegistered = true;
+}
+
+
+/**
+ * Letters outside the bundled Latin subset render in the matching Noto Sans subset: the Vietnamese block
+ * holds the Yoruba/Igbo dotted vowels (Ọ, Ẹ, Ị, Ụ), Latin Extended holds the rest. Runs are split per script.
+ */
+const EXT_RUN = /([Ā-ʯḀ-ỿ]+)/;
+function fontForRun(run: string): string {
+  const code = run.codePointAt(0) ?? 0;
+  return code >= 0x1ea0 && code <= 0x1ef9 ? 'Noto Sans Vi' : 'Noto Sans Ext';
+}
+function Mixed({ children }: { children: string | undefined }) {
+  const parts = String(children ?? '')
+    .split(EXT_RUN)
+    .flatMap((part, i) => (i % 2 === 1 ? part.split(/(?<=[Ạ-ỹ])(?=[^Ạ-ỹ])|(?<=[^Ạ-ỹ])(?=[Ạ-ỹ])/) : [part]));
+  return (
+    <>
+      {parts.map((part, i) =>
+        EXT_RUN.test(part) ? (
+          <Text key={i} style={{ fontFamily: fontForRun(part) }}>
+            {part}
+          </Text>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
 }
 
 const PAGE_PADDING = 40;
@@ -75,11 +132,11 @@ function baseStyles(brandColor: string, fontFamily: string) {
       borderBottomWidth: 1,
       borderBottomColor: '#e2e8f0',
     },
-    colDescription: { flex: 3 },
-    colQty: { flex: 1, textAlign: 'right' },
-    colPrice: { flex: 1.4, textAlign: 'right' },
-    colTax: { flex: 1, textAlign: 'right' },
-    colTotal: { flex: 1.4, textAlign: 'right' },
+    colDescription: { flex: 2.4, paddingRight: 6 },
+    colQty: { flex: 0.7, textAlign: 'right' },
+    colPrice: { flex: 1.8, textAlign: 'right' },
+    colTax: { flex: 1.6, textAlign: 'right' },
+    colTotal: { flex: 1.8, textAlign: 'right' },
     totalsBlock: { marginTop: 12, alignSelf: 'flex-end', width: 220 },
     totalsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
     totalsGrand: {
@@ -134,7 +191,7 @@ export function DocumentPdf({ data }: { data: PdfDocumentData }) {
     <View style={styles.headerBand}>
       <View>
         {data.logoDataUri && <Image src={data.logoDataUri} style={styles.logo} />}
-        <Text style={{ color: '#ffffff', fontSize: 14, fontWeight: 700 }}>{data.businessName}</Text>
+        <Text style={{ color: '#ffffff', fontSize: 14, fontWeight: 700 }}><Mixed>{data.businessName}</Mixed></Text>
       </View>
       <View>
         <Text style={{ color: '#ffffff', fontSize: 20, fontWeight: 700, textAlign: 'right' }}>
@@ -149,10 +206,10 @@ export function DocumentPdf({ data }: { data: PdfDocumentData }) {
     <View style={[styles.row, styles.section]}>
       <View>
         {data.logoDataUri && <Image src={data.logoDataUri} style={styles.logo} />}
-        <Text style={styles.businessName}>{data.businessName}</Text>
+        <Text style={styles.businessName}><Mixed>{data.businessName}</Mixed></Text>
         {data.businessAddressLines.map((line, i) => (
           <Text key={i} style={styles.muted}>
-            {line}
+            <Mixed>{line}</Mixed>
           </Text>
         ))}
       </View>
@@ -177,9 +234,14 @@ export function DocumentPdf({ data }: { data: PdfDocumentData }) {
         {isModern && (
           <View style={[styles.row, styles.section]}>
             <View>
+              {[data.businessEmail, data.businessPhone].filter(Boolean).map((line, i) => (
+                <Text key={`c${i}`} style={styles.muted}>
+                  {line}
+                </Text>
+              ))}
               {data.businessAddressLines.map((line, i) => (
                 <Text key={i} style={styles.muted}>
-                  {line}
+                  <Mixed>{line}</Mixed>
                 </Text>
               ))}
             </View>
@@ -189,10 +251,12 @@ export function DocumentPdf({ data }: { data: PdfDocumentData }) {
         <View style={[styles.row, styles.section]}>
           <View>
             <Text style={styles.label}>Bill to</Text>
-            <Text style={{ fontWeight: 700, marginBottom: 2 }}>{data.customerName}</Text>
+            <Text style={{ fontWeight: 700, marginBottom: 2 }}>
+              <Mixed>{data.customerName}</Mixed>
+            </Text>
             {data.customerAddressLines.map((line, i) => (
               <Text key={i} style={styles.muted}>
-                {line}
+                <Mixed>{line}</Mixed>
               </Text>
             ))}
             {data.customerEmail && <Text style={styles.muted}>{data.customerEmail}</Text>}
@@ -220,7 +284,9 @@ export function DocumentPdf({ data }: { data: PdfDocumentData }) {
           </View>
           {data.items.map((item, i) => (
             <View key={i} style={styles.tableRow} wrap={false}>
-              <Text style={styles.colDescription}>{item.description}</Text>
+              <Text style={styles.colDescription}>
+                <Mixed>{item.description}</Mixed>
+              </Text>
               <Text style={styles.colQty}>{item.quantity}</Text>
               <Text style={styles.colPrice}>{item.unitPriceLabel}</Text>
               <Text style={styles.colTax}>{item.taxLabel ?? '—'}</Text>
@@ -273,13 +339,17 @@ export function DocumentPdf({ data }: { data: PdfDocumentData }) {
             {data.notes && (
               <View style={{ marginBottom: 8 }}>
                 <Text style={styles.label}>Notes</Text>
-                <Text>{data.notes}</Text>
+                <Text>
+                  <Mixed>{data.notes}</Mixed>
+                </Text>
               </View>
             )}
             {data.paymentInstructions && (
               <View style={{ marginBottom: 8 }}>
                 <Text style={styles.label}>Payment instructions</Text>
-                <Text>{data.paymentInstructions}</Text>
+                <Text>
+                  <Mixed>{data.paymentInstructions}</Mixed>
+                </Text>
               </View>
             )}
             {data.terms && (
@@ -293,7 +363,9 @@ export function DocumentPdf({ data }: { data: PdfDocumentData }) {
 
         {data.footerText && (
           <View style={{ marginTop: 18 }}>
-            <Text style={styles.muted}>{data.footerText}</Text>
+            <Text style={styles.muted}>
+              <Mixed>{data.footerText}</Mixed>
+            </Text>
           </View>
         )}
 

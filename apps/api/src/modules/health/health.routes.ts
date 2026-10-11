@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { prisma } from '@invoicetap/database';
+import { prisma } from '@sendnaro/database';
 
 export const healthRouter = Router();
 

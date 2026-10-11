@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { AppError, PLAN_CODES, PLANS, type PlanCode } from '@invoicetap/shared';
-import { parseApiEnv } from '@invoicetap/config/env';
-import { prisma } from '@invoicetap/database';
+import { AppError, PLAN_CODES, PLANS, type PlanCode } from '@sendnaro/shared';
+import { parseApiEnv } from '@sendnaro/config/env';
+import { prisma } from '@sendnaro/database';
 import { requireAuth } from '../../middleware/auth.js';
 import { requireWorkspace } from '../../middleware/workspace-context.js';
 import { requirePermission } from '../../middleware/authorize.js';

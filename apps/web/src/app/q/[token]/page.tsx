@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { Download } from 'lucide-react';
-import { getCurrency, BRAND } from '@invoicetap/shared';
-import { Card } from '@invoicetap/ui';
+import { getCurrency, BRAND } from '@sendnaro/shared';
+import { Card } from '@sendnaro/ui';
 import { publicApiFetch } from '@/lib/public-api';
 import { RespondButtons } from './respond-buttons';
 

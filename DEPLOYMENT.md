@@ -14,8 +14,8 @@ repository — the steps below are what you (the owner) run.
    connection.
 4. Run migrations against it once, from your machine or CI:
    ```bash
-   DATABASE_URL=... DIRECT_DATABASE_URL=... npm run db:migrate:deploy --workspace=@invoicetap/database
-   DATABASE_URL=... DIRECT_DATABASE_URL=... npm run db:seed --workspace=@invoicetap/database
+   DATABASE_URL=... DIRECT_DATABASE_URL=... npm run db:migrate:deploy --workspace=@sendnaro/database
+   DATABASE_URL=... DIRECT_DATABASE_URL=... npm run db:seed --workspace=@sendnaro/database
    ```
 
 ## 2. Backblaze B2 (storage)
@@ -31,7 +31,7 @@ repository — the steps below are what you (the owner) run.
 
 1. Add and verify your sending domain at [resend.com](https://resend.com).
 2. Create an API key → `RESEND_API_KEY`.
-3. Set `EMAIL_PROVIDER=resend`, `EMAIL_FROM="InvoiceTap <you@yourdomain>"`.
+3. Set `EMAIL_PROVIDER=resend`, `EMAIL_FROM="Sendnaro <you@yourdomain>"`.
 
 ## 4. Railway (API)
 

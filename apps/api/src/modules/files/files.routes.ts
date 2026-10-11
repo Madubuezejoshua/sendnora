@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
-import { AppError } from '@invoicetap/shared';
-import { prisma } from '@invoicetap/database';
+import { AppError } from '@sendnaro/shared';
+import { prisma } from '@sendnaro/database';
 import { requireAuth } from '../../middleware/auth.js';
 import { requireWorkspace } from '../../middleware/workspace-context.js';
 import { requirePermission } from '../../middleware/authorize.js';

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { prisma } from '@invoicetap/database';
-import { encryptSecret } from '@invoicetap/database/encryption';
+import { prisma } from '@sendnaro/database';
+import { encryptSecret } from '@sendnaro/database/encryption';
 import { app, auth, drain, makeBusiness, makeKey } from './sn-helpers.js';
 import { otpPolicy } from '../../src/sendnaro/v1/otp.service.js';
 import { setLiveProviderOverride } from '../../src/sendnaro/delivery/provider.js';

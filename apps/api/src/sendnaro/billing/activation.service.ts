@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
-import { prisma, type ActivationPayment } from '@invoicetap/database';
-import { AppError } from '@invoicetap/shared';
-import { parseApiEnv } from '@invoicetap/config/env';
+import { prisma, type ActivationPayment } from '@sendnaro/database';
+import { AppError } from '@sendnaro/shared';
+import { parseApiEnv } from '@sendnaro/config/env';
 import { writeAuditLog } from '../../services/audit.service.js';
 import { getBillingSettings, hasActiveEntitlement } from '../entitlement.js';
 import { getActivationGateway } from './gateway.js';

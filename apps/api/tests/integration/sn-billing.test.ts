@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createHmac } from 'node:crypto';
-import { prisma } from '@invoicetap/database';
+import { prisma } from '@sendnaro/database';
 import { app, auth, bearer, connectWhatsApp, drain, invoiceBody, makeBusiness, makeKey, sessionToken } from './sn-helpers.js';
 import { createTestUser } from './setup.js';
 import { getBillingSettings, saveBillingSettings, seedBillingDefaults } from '../../src/sendnaro/entitlement.js';

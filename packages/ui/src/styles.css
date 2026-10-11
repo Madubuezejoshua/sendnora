@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /*
- * InvoiceTap design tokens (HSL triplets, no hsl() wrapper — consumed via
+ * Sendnaro design tokens (HSL triplets, no hsl() wrapper — consumed via
  * hsl(var(--token)) in the Tailwind preset so alpha modifiers work, e.g.
  * bg-primary/50). Light theme first; dark theme overrides below.
  */

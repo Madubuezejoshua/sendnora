@@ -49,3 +49,9 @@ Thumbs.db
 .railway/
 
 .vercel
+
+# Dev/test email sinks
+.dev-emails/
+**/.dev-emails/
+test-results/
+playwright-report/

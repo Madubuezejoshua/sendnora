@@ -14,6 +14,7 @@ const nextConfig = {
   outputFileTracingIncludes: {
     '/**/*': [
       './generated/client/*', // copied here by vercel.json's buildCommand — Prisma searches this path at runtime
+      '../../examples/**', // the docs page renders these files at request time
     ],
   },
   // Linting runs as its own separate CI/npm-scripts step (`npm run lint`)
@@ -24,17 +25,23 @@ const nextConfig = {
   // packages/shared and packages/ui are consumed as raw TypeScript source
   // (no build step) — Next.js needs to know to transpile them itself.
   transpilePackages: [
-    '@invoicetap/shared',
-    '@invoicetap/ui',
-    '@invoicetap/database',
-    '@invoicetap/config',
+    '@sendnaro/shared',
+    '@sendnaro/ui',
+    '@sendnaro/database',
+    '@sendnaro/config',
   ],
   reactStrictMode: true,
+  // One public origin: https://<domain>/api/v1/* is served by apps/api, so merchants, Meta, Telegram and
+  // the payment gateway all use the same base URL. (Session/console traffic goes through /api/proxy.)
+  async rewrites() {
+    const api = process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+    return [{ source: '/api/v1/:path*', destination: `${api}/api/v1/:path*` }];
+  },
   images: {
     remotePatterns: [{ protocol: 'https', hostname: '**' }],
   },
   webpack: (config) => {
-    // @invoicetap/shared and @invoicetap/ui ship raw TypeScript source using
+    // @sendnaro/shared and @sendnaro/ui ship raw TypeScript source using
     // explicit .js-suffixed relative imports (the NodeNext ESM convention,
     // needed for apps/api's Node runtime — see ARCHITECTURE.md). Node's own
     // resolver and tsx handle this natively; webpack needs to be told

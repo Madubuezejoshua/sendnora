@@ -1,6 +1,6 @@
 import webpush from 'web-push';
-import { prisma } from '@invoicetap/database';
-import { parseApiEnv } from '@invoicetap/config/env';
+import { prisma } from '@sendnaro/database';
+import { parseApiEnv } from '@sendnaro/config/env';
 import { logger } from '../config/logger.js';
 
 let vapidConfigured = false;

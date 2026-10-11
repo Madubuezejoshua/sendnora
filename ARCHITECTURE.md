@@ -1,6 +1,6 @@
 # Architecture
 
-InvoiceTap is a TypeScript monorepo with two deployable applications and four
+Sendnaro is a TypeScript monorepo with two deployable applications and four
 shared packages.
 
 ```
@@ -33,7 +33,7 @@ so it gets its own section.
 adapter, using the _database_ session strategy (not JWT) so that "log out
 other sessions" and "login history" are real, queryable data (the `Session`
 and `LoginEvent` tables). The Credentials provider's `authorize()` callback
-queries `User` via `@invoicetap/database` directly and verifies the password
+queries `User` via `@sendnaro/database` directly and verifies the password
 with Argon2id (`packages/database/src/password.ts`). apps/web is the only
 place that ever touches a plaintext password or a session cookie.
 

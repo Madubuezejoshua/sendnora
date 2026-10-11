@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
-import { prisma } from '@invoicetap/database';
+import { prisma } from '@sendnaro/database';
 import { buildTestApp, setupWorkspaceContext } from './setup.js';
 import { sendTelegramToCustomer } from '../../src/services/telegram/telegram.service.js';
 

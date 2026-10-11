@@ -1,6 +1,6 @@
 import 'server-only';
 import { cookies } from 'next/headers';
-import { signApiToken } from '@invoicetap/shared/server/api-token';
+import { signApiToken } from '@sendnaro/shared/server/api-token';
 import { auth } from '@/auth';
 import { getWebEnv } from './env.js';
 import { ACTIVE_WORKSPACE_COOKIE_NAME } from './constants.js';
@@ -49,7 +49,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   const env = getWebEnv();
   const baseUrl = env.API_INTERNAL_URL ?? env.NEXT_PUBLIC_API_URL;
 
-  const res = await fetch(`${baseUrl}/api/v1${path}`, {
+  const res = await fetch(`${baseUrl}/api/console${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',

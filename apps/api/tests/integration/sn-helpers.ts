@@ -1,6 +1,6 @@
 import http from 'node:http';
-import { prisma, type ApiEnvironment } from '@invoicetap/database';
-import { encryptSecret } from '@invoicetap/database/encryption';
+import { prisma, type ApiEnvironment } from '@sendnaro/database';
+import { encryptSecret } from '@sendnaro/database/encryption';
 import { API_SCOPES, generateSecret } from '../../src/sendnaro/keys.js';
 import { drainOutbox } from '../../src/sendnaro/jobs.js';
 import { buildTestApp, createTestUser, createTestWorkspace, getTestEnv } from './setup.js';

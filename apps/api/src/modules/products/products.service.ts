@@ -1,11 +1,11 @@
-import { prisma } from '@invoicetap/database';
+import { prisma } from '@sendnaro/database';
 import {
   AppError,
   createProductSchema,
   isSupportedCurrency,
   type CreateProductInput,
   type PaginationQuery,
-} from '@invoicetap/shared';
+} from '@sendnaro/shared';
 import { paginate, toSkipTake } from '../../services/pagination.js';
 import { parseCsv, stringifyCsv, type ImportSummary } from '../../services/csv.service.js';
 

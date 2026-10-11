@@ -4,7 +4,7 @@ import cors from 'cors';
 import compression from 'compression';
 import pinoHttp from 'pino-http';
 import { randomUUID } from 'node:crypto';
-import type { ApiEnv } from '@invoicetap/config/env';
+import type { ApiEnv } from '@sendnaro/config/env';
 import { logger } from './config/logger.js';
 import { healthRouter } from './modules/health/health.routes.js';
 import { paymentsWebhookRouter } from './modules/payments/payments.routes.js';

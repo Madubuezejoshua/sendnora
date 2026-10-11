@@ -1,1800 +1,215 @@
 openapi: 3.0.3
 info:
-  title: InvoiceTap API
-  version: '1.0'
-  description: >
-    Business-domain API for InvoiceTap. Authenticated via a short-lived
-    bearer token minted by the Next.js app after validating the user's
-    session — see ARCHITECTURE.md. Covers every mounted route as of this
-    build; see API.md for the same route map in table form with module
-    groupings and cross-cutting notes (rate limits, idempotency, webhook
-    signature verification) that don't fit cleanly into OpenAPI.
+  title: Sendnaro API
+  version: '1'
+  description: |
+    Send invoices, WhatsApp verification codes and order updates from your backend.
+
+    **Authentication.** `Authorization: Bearer sn_test_...` (sandbox) or `sn_live_...` (live). Keys are
+    server-side secrets: never put them in browser code, mobile apps, query strings or `NEXT_PUBLIC_` variables.
+    The tenant and environment come from the key; no body field can override them.
+
+    **Accepted is not delivered.** Endpoints that trigger delivery return `202 Accepted` after the request
+    is durably queued. Track the outcome with `GET /deliveries/{id}` or signed webhooks.
+
+    **Amounts** are integer minor units (`500000` = NGN 5,000.00). Totals are calculated by Sendnaro.
+
+    **Idempotency.** Send an `Idempotency-Key` header on POSTs that create something. The same key with the
+    same body returns the original response (`Idempotent-Replayed: true`); with a different body it returns
+    `409 idempotency_conflict`. Keys are kept for 24 hours.
+
+    **Errors** always look like `{ "error": { "code", "message", "request_id", "fields"? } }`.
 servers:
-  - url: http://localhost:4000/api/v1
-    description: Local development
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: >
-        Short-lived JWT minted by apps/web from the visitor's session — never
-        a long-lived credential. Not usable by third-party clients today; see
-        the API keys section for the current, management-only alternative.
-  parameters:
-    page:
-      in: query
-      name: page
-      schema: { type: integer, default: 1 }
-    pageSize:
-      in: query
-      name: pageSize
-      schema: { type: integer, default: 20, maximum: 100 }
-    search:
-      in: query
-      name: search
-      schema: { type: string }
-  responses:
-    Unauthorized:
-      description: Missing/invalid bearer token
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/Error' }
-    Forbidden:
-      description: Authenticated but missing the required permission
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/Error' }
-    NotFound:
-      description: No such resource in the active workspace
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/Error' }
-    ValidationError:
-      description: Request body failed schema validation
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/Error' }
-  schemas:
-    Error:
-      type: object
-      properties:
-        error:
-          type: object
-          properties:
-            code:
-              type: string
-              example: VALIDATION_ERROR
-            message:
-              type: string
-            requestId:
-              type: string
-            fieldErrors:
-              type: object
-              additionalProperties:
-                type: array
-                items:
-                  type: string
-    Money:
-      type: object
-      description: Minor-unit integer amount plus ISO currency code.
-      properties:
-        amountMinorUnits:
-          type: integer
-        currency:
-          type: string
-          example: NGN
-    PaginatedMeta:
-      type: object
-      properties:
-        page: { type: integer }
-        pageSize: { type: integer }
-        totalItems: { type: integer }
-        totalPages: { type: integer }
-    Customer:
-      type: object
-      properties:
-        id:
-          type: string
-        type:
-          type: string
-          enum: [INDIVIDUAL, BUSINESS]
-        name:
-          type: string
-        email:
-          type: string
-          nullable: true
-        whatsappPhone:
-          type: string
-          nullable: true
-        status:
-          type: string
-          enum: [ACTIVE, ARCHIVED]
-    Product:
-      type: object
-      properties:
-        id: { type: string }
-        kind: { type: string, enum: [PRODUCT, SERVICE] }
-        name: { type: string }
-        sku: { type: string, nullable: true }
-        unit: { type: string }
-        unitPriceMinorUnits: { type: integer }
-        currency: { type: string }
-    LineItemInput:
-      type: object
-      required: [description, quantity, unitPriceMinorUnits]
-      properties:
-        description:
-          type: string
-        quantity:
-          type: number
-        unitPriceMinorUnits:
-          type: integer
-        taxRatePercent:
-          type: number
-        productId:
-          type: string
-    Invoice:
-      type: object
-      properties:
-        id:
-          type: string
-        number:
-          type: string
-        status:
-          type: string
-          enum: [DRAFT, ISSUED, SENT, VIEWED, PARTIALLY_PAID, PAID, OVERDUE, VOID, CANCELLED]
-        currency:
-          type: string
-        grandTotalMinorUnits:
-          type: integer
-        amountPaidMinorUnits:
-          type: integer
-        dueDate:
-          type: string
-          format: date-time
-    Quote:
-      type: object
-      properties:
-        id: { type: string }
-        number: { type: string }
-        status:
-          type: string
-          enum: [DRAFT, SENT, VIEWED, ACCEPTED, REJECTED, EXPIRED, CANCELLED, CONVERTED]
-        currency: { type: string }
-        grandTotalMinorUnits: { type: integer }
-        expiryDate: { type: string, format: date-time, nullable: true }
-    Receipt:
-      type: object
-      properties:
-        id: { type: string }
-        number: { type: string }
-        invoiceId: { type: string }
-        amountMinorUnits: { type: integer }
-        currency: { type: string }
-        paymentMethod: { type: string }
-        paidAt: { type: string, format: date-time }
-        publicToken: { type: string }
-    Expense:
-      type: object
-      properties:
-        id: { type: string }
-        vendor: { type: string }
-        category: { type: string }
-        amountMinorUnits: { type: integer }
-        currency: { type: string }
-        incurredAt: { type: string, format: date-time }
-        isRecurring: { type: boolean }
-    RecurringInvoice:
-      type: object
-      properties:
-        id: { type: string }
-        customerId: { type: string }
-        frequency:
-          type: string
-          enum: [DAILY, WEEKLY, MONTHLY, QUARTERLY, ANNUAL, CUSTOM]
-        status: { type: string, enum: [ACTIVE, PAUSED, ENDED] }
-        nextRunAt: { type: string, format: date-time, nullable: true }
-    Notification:
-      type: object
-      properties:
-        id: { type: string }
-        type: { type: string }
-        title: { type: string }
-        body: { type: string }
-        readAt: { type: string, format: date-time, nullable: true }
-        createdAt: { type: string, format: date-time }
-    ApiKeySummary:
-      type: object
-      properties:
-        id: { type: string }
-        name: { type: string }
-        prefix: { type: string }
-        lastUsedAt: { type: string, format: date-time, nullable: true }
-        revokedAt: { type: string, format: date-time, nullable: true }
-        createdAt: { type: string, format: date-time }
+  - url: http://localhost:3000/api/v1
+    description: Local development (the intended production base URL is https://sendnaro.com/api/v1 once deployed)
+security:
+  - bearerAuth: []
+tags:
+  - name: Invoices
+  - name: OTP
+  - name: Notifications
+  - name: Deliveries
+  - name: Telegram
+  - name: Sandbox
 paths:
-  # --- Health -----------------------------------------------------------
-  /health:
+  /ping:
     get:
-      summary: Liveness probe
-      tags: [Health]
-      security: []
+      summary: Check a key
+      description: Returns the key's environment and scopes. Requires no scope.
+      responses:
+        '200': { description: OK }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+  /invoices:
+    post:
+      tags: [Invoices]
+      summary: Create an invoice or receipt and deliver it
+      description: Requires scope `invoices:create`.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateInvoice' }
+      responses:
+        '202':
+          description: Accepted for processing
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Invoice' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /invoices/{invoice_id}:
+    get:
+      tags: [Invoices]
+      summary: Retrieve an invoice
+      description: Requires scope `invoices:read`. `pdf.url` is a short-lived signed link once the PDF exists.
+      parameters:
+        - { name: invoice_id, in: path, required: true, schema: { type: string, example: inv_cm0abc123 } }
       responses:
         '200':
           description: OK
-  /ready:
-    get:
-      summary: Readiness probe — checks database connectivity
-      tags: [Health]
-      security: []
-      responses:
-        '200':
-          description: Ready
-        '503':
-          description: Database unreachable
-
-  # --- Customers ----------------------------------------------------------
-  /customers:
-    get:
-      summary: List customers in the active workspace
-      tags: [Customers]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - $ref: '#/components/parameters/page'
-        - $ref: '#/components/parameters/pageSize'
-        - $ref: '#/components/parameters/search'
-      responses:
-        '200':
-          description: Paginated customer list
           content:
             application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/PaginatedMeta'
-                  - type: object
-                    properties:
-                      items:
-                        type: array
-                        items: { $ref: '#/components/schemas/Customer' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-    post:
-      summary: Create a customer
-      tags: [Customers]
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name]
-              properties:
-                type: { type: string, enum: [INDIVIDUAL, BUSINESS] }
-                name: { type: string }
-                email: { type: string }
-                whatsappPhone: { type: string }
-      responses:
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data: { $ref: '#/components/schemas/Customer' }
-        '402':
-          description: Plan customer limit exceeded
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Error' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-  /customers/export:
-    get:
-      summary: Export all customers as CSV
-      tags: [Customers]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: CSV file
-          content:
-            text/csv:
-              schema: { type: string }
-  /customers/import:
-    post:
-      summary: Bulk-import customers from a CSV file (row-level validation; one bad row never fails the batch)
-      tags: [Customers]
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
-                file: { type: string, format: binary }
-      responses:
-        '200':
-          description: Import summary
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: object
-                    properties:
-                      imported: { type: integer }
-                      skipped: { type: integer }
-                      errors:
-                        type: array
-                        items:
-                          type: object
-                          properties:
-                            row: { type: integer }
-                            message: { type: string }
-  /customers/{customerId}:
-    get:
-      summary: Get a customer
-      tags: [Customers]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: customerId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Customer detail
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data: { $ref: '#/components/schemas/Customer' }
+              schema: { $ref: '#/components/schemas/Invoice' }
         '404': { $ref: '#/components/responses/NotFound' }
-    patch:
-      summary: Update a customer
-      tags: [Customers]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: customerId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Updated customer
-  /customers/{customerId}/statement:
-    get:
-      summary: Customer statement summary (lifetime billed/paid/outstanding)
-      tags: [Customers]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: customerId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Statement summary
-  /customers/{customerId}/archive:
+  /otp/challenges:
     post:
-      summary: Archive a customer (soft delete)
-      tags: [Customers]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: customerId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Archived customer
-  /customers/{customerId}/restore:
-    post:
-      summary: Restore an archived customer
-      tags: [Customers]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: customerId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Restored customer
-
-  # --- Products / categories / tax rates -----------------------------------
-  /products:
-    get:
-      summary: List products
-      tags: [Products]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - $ref: '#/components/parameters/page'
-        - $ref: '#/components/parameters/pageSize'
-        - $ref: '#/components/parameters/search'
-      responses:
-        '200':
-          description: Paginated product list
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/PaginatedMeta'
-                  - type: object
-                    properties:
-                      items:
-                        type: array
-                        items: { $ref: '#/components/schemas/Product' }
-    post:
-      summary: Create a product or service
-      tags: [Products]
-      security: [{ bearerAuth: [] }]
+      tags: [OTP]
+      summary: Send a WhatsApp verification code
+      description: >
+        Requires scope `otp:create`. The response never contains the code. Verifying a code proves access to the
+        WhatsApp number only; it does not verify an email address.
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              required: [name, unitPriceMinorUnits, currency]
-              properties:
-                kind: { type: string, enum: [PRODUCT, SERVICE] }
-                name: { type: string }
-                unit: { type: string }
-                unitPriceMinorUnits: { type: integer }
-                currency: { type: string }
-                sku: { type: string }
-                taxRateId: { type: string }
-                categoryId: { type: string }
+            schema: { $ref: '#/components/schemas/CreateOtp' }
       responses:
-        '201':
-          description: Created
+        '202':
+          description: Accepted
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  data: { $ref: '#/components/schemas/Product' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-  /products/export:
-    get:
-      summary: Export all products as CSV
-      tags: [Products]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: CSV file
-          content:
-            text/csv:
-              schema: { type: string }
-  /products/import:
+              schema: { $ref: '#/components/schemas/OtpChallenge' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /otp/challenges/{challenge_id}/resend:
     post:
-      summary: Bulk-import products from a CSV file
-      tags: [Products]
-      security: [{ bearerAuth: [] }]
+      tags: [OTP]
+      summary: Send a fresh code (the previous code stops working)
+      description: Requires scope `otp:create`. Subject to a cooldown and a resend cap.
+      parameters:
+        - { name: challenge_id, in: path, required: true, schema: { type: string } }
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OtpChallenge' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /otp/challenges/{challenge_id}/verify:
+    post:
+      tags: [OTP]
+      summary: Verify a code (single use)
+      description: >
+        Requires scope `otp:verify`. Checked against this business, environment, challenge, recipient and purpose.
+        Errors: `otp_invalid` (with attempts remaining), `otp_expired`, `otp_locked`.
+      parameters:
+        - { name: challenge_id, in: path, required: true, schema: { type: string } }
       requestBody:
         required: true
         content:
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
-                file: { type: string, format: binary }
+          application/json:
+            schema: { $ref: '#/components/schemas/VerifyOtp' }
       responses:
         '200':
-          description: Import summary (same shape as /customers/import)
-  /products/{productId}:
-    get:
-      summary: Get a product
-      tags: [Products]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: productId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Product detail
+          description: Verified
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OtpChallenge' }
         '404': { $ref: '#/components/responses/NotFound' }
-    patch:
-      summary: Update a product
-      tags: [Products]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: productId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Updated product
-  /products/{productId}/archive:
-    post:
-      summary: Archive a product
-      tags: [Products]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: productId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Archived product
-  /categories:
-    get:
-      summary: List product categories
-      tags: [Products]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Category list
-    post:
-      summary: Create a product category
-      tags: [Products]
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name]
-              properties:
-                name: { type: string }
-      responses:
-        '201':
-          description: Created category
-  /tax-rates:
-    get:
-      summary: List tax rates
-      tags: [Products]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Tax rate list
-    post:
-      summary: Create a tax rate
-      tags: [Products]
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name, ratePercent]
-              properties:
-                name: { type: string }
-                ratePercent: { type: number }
-                isDefault: { type: boolean }
-      responses:
-        '201':
-          description: Created tax rate
-
-  # --- Quotes ---------------------------------------------------------------
-  /quotes:
-    get:
-      summary: List quotes
-      tags: [Quotes]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - $ref: '#/components/parameters/page'
-        - $ref: '#/components/parameters/pageSize'
-      responses:
-        '200':
-          description: Paginated quote list
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/PaginatedMeta'
-                  - type: object
-                    properties:
-                      items:
-                        type: array
-                        items: { $ref: '#/components/schemas/Quote' }
-    post:
-      summary: Create a draft quote with computed totals
-      tags: [Quotes]
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [customerId, currency, issueDate, lineItems]
-              properties:
-                customerId: { type: string }
-                currency: { type: string }
-                taxMode: { type: string, enum: [EXCLUSIVE, INCLUSIVE] }
-                issueDate: { type: string, format: date-time }
-                expiryDate: { type: string, format: date-time }
-                lineItems:
-                  type: array
-                  items: { $ref: '#/components/schemas/LineItemInput' }
-      responses:
-        '201':
-          description: Created draft quote
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data: { $ref: '#/components/schemas/Quote' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-  /quotes/{quoteId}:
-    get:
-      summary: Get a quote
-      tags: [Quotes]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: quoteId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Quote detail
-        '404': { $ref: '#/components/responses/NotFound' }
-    patch:
-      summary: Update a draft quote
-      tags: [Quotes]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: quoteId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Updated quote
-        '409':
-          description: Quote is no longer editable (already sent/accepted)
-  /quotes/{quoteId}/send:
-    post:
-      summary: Send a quote to the customer (email/WhatsApp/both)
-      tags: [Quotes]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: quoteId
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [channel]
-              properties:
-                channel: { type: string, enum: [EMAIL, WHATSAPP, BOTH] }
-      responses:
-        '200':
-          description: Quote transitioned to SENT
-  /quotes/{quoteId}/respond:
-    post:
-      summary: Record the customer's accept/reject decision (internal staff action; the public endpoint is /public/quotes/:token/respond)
-      tags: [Quotes]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: quoteId
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [decision]
-              properties:
-                decision: { type: string, enum: [ACCEPTED, REJECTED] }
-                reason: { type: string }
-      responses:
-        '200':
-          description: Quote transitioned
-  /quotes/{quoteId}/cancel:
-    post:
-      summary: Cancel a quote
-      tags: [Quotes]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: quoteId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Quote transitioned to CANCELLED
-  /quotes/{quoteId}/pdf:
-    get:
-      summary: Download the quote PDF
-      tags: [Quotes]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: quoteId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: PDF file
-          content:
-            application/pdf: {}
-  /quotes/{quoteId}/duplicate:
-    post:
-      summary: Duplicate a quote as a new draft
-      tags: [Quotes]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: quoteId
-          required: true
-          schema: { type: string }
-      responses:
-        '201':
-          description: New draft quote
-  /quotes/{quoteId}/convert:
-    post:
-      summary: Convert an accepted quote to a draft invoice
-      tags: [Quotes]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: quoteId
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [dueDate]
-              properties:
-                dueDate: { type: string, format: date-time }
-      responses:
-        '201':
-          description: New draft invoice
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data: { $ref: '#/components/schemas/Invoice' }
-
-  # --- Invoices ---------------------------------------------------------------
-  /invoices:
-    get:
-      summary: List invoices
-      tags: [Invoices]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - $ref: '#/components/parameters/page'
-        - $ref: '#/components/parameters/pageSize'
-        - in: query
-          name: status
-          schema: { type: string }
-      responses:
-        '200':
-          description: Paginated invoice list
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/PaginatedMeta'
-                  - type: object
-                    properties:
-                      items:
-                        type: array
-                        items: { $ref: '#/components/schemas/Invoice' }
-    post:
-      summary: Create a draft invoice with computed totals
-      tags: [Invoices]
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [customerId, currency, issueDate, dueDate, lineItems]
-              properties:
-                customerId: { type: string }
-                currency: { type: string }
-                taxMode: { type: string, enum: [EXCLUSIVE, INCLUSIVE] }
-                issueDate: { type: string, format: date-time }
-                dueDate: { type: string, format: date-time }
-                sourceQuoteId: { type: string }
-                lineItems:
-                  type: array
-                  items: { $ref: '#/components/schemas/LineItemInput' }
-      responses:
-        '201':
-          description: Created draft invoice
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data: { $ref: '#/components/schemas/Invoice' }
-        '422': { $ref: '#/components/responses/ValidationError' }
-  /invoices/{invoiceId}:
-    get:
-      summary: Get an invoice
-      tags: [Invoices]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: invoiceId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Invoice detail
-        '404': { $ref: '#/components/responses/NotFound' }
-    patch:
-      summary: Update a draft invoice
-      tags: [Invoices]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: invoiceId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Updated invoice
-        '409':
-          description: Invoice is no longer editable
-  /invoices/{invoiceId}/issue:
-    post:
-      summary: Transition a draft invoice to ISSUED (enforces plan invoice quota, schedules reminders)
-      tags: [Invoices]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: invoiceId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Issued invoice
-        '402':
-          description: Plan invoice quota exceeded
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Error' }
-        '409':
-          description: Invalid status transition
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Error' }
-  /invoices/{invoiceId}/send:
-    post:
-      summary: Send an invoice to the customer (email/WhatsApp/both)
-      tags: [Invoices]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: invoiceId
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [channel]
-              properties:
-                channel: { type: string, enum: [EMAIL, WHATSAPP, BOTH] }
-      responses:
-        '200':
-          description: Invoice transitioned to SENT
-  /invoices/{invoiceId}/payments:
-    post:
-      summary: Record a manual payment against an invoice (generates a Receipt)
-      tags: [Invoices]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: invoiceId
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [amountMinorUnits, method, paidAt]
-              properties:
-                amountMinorUnits: { type: integer }
-                method:
-                  { type: string, enum: [CASH, BANK_TRANSFER, CARD, PAYSTACK, FLUTTERWAVE, OTHER] }
-                paidAt: { type: string, format: date-time }
-                reference: { type: string }
-                notes: { type: string }
-      responses:
-        '201':
-          description: Payment recorded and receipt generated
-        '422':
-          description: Payment amount exceeds the outstanding balance
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Error' }
-  /invoices/{invoiceId}/void:
-    post:
-      summary: Void an issued invoice (requires a reason; blocked once any payment exists)
-      tags: [Invoices]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: invoiceId
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [reason]
-              properties:
-                reason: { type: string }
-      responses:
-        '200':
-          description: Voided invoice
-        '409':
-          description: Cannot void an invoice with recorded payments
-  /invoices/{invoiceId}/pdf:
-    get:
-      summary: Download the invoice PDF
-      tags: [Invoices]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: invoiceId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: PDF file
-          content:
-            application/pdf: {}
-  /invoices/{invoiceId}/credit-notes:
-    post:
-      summary: Issue a credit note against an invoice
-      tags: [Invoices]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: invoiceId
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [amountMinorUnits, reason]
-              properties:
-                amountMinorUnits: { type: integer }
-                reason: { type: string }
-      responses:
-        '201':
-          description: Created credit note
-  /invoices/{invoiceId}/payment-link:
-    post:
-      summary: Initialize a hosted checkout link for this invoice (workspace-side, authenticated — for the public equivalent see /public/invoices/{token}/pay)
-      tags: [Payments]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: invoiceId
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [provider]
-              properties:
-                provider: { type: string, enum: [PAYSTACK, FLUTTERWAVE] }
-      responses:
-        '200':
-          description: Gateway checkout URL
-
-  # --- Receipts ---------------------------------------------------------------
-  /receipts:
-    get:
-      summary: List receipts
-      tags: [Receipts]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - $ref: '#/components/parameters/page'
-        - $ref: '#/components/parameters/pageSize'
-      responses:
-        '200':
-          description: Paginated receipt list
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/PaginatedMeta'
-                  - type: object
-                    properties:
-                      items:
-                        type: array
-                        items: { $ref: '#/components/schemas/Receipt' }
-  /receipts/{receiptId}:
-    get:
-      summary: Get a receipt
-      tags: [Receipts]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: receiptId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Receipt detail
-        '404': { $ref: '#/components/responses/NotFound' }
-  /receipts/{receiptId}/pdf:
-    get:
-      summary: Download the receipt PDF
-      tags: [Receipts]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: receiptId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: PDF file
-          content:
-            application/pdf: {}
-  /receipts/{receiptId}/void:
-    post:
-      summary: Void a receipt
-      tags: [Receipts]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: receiptId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Voided receipt
-
-  # --- Expenses -----------------------------------------------------------
-  /expenses:
-    get:
-      summary: List expenses
-      tags: [Expenses]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - $ref: '#/components/parameters/page'
-        - $ref: '#/components/parameters/pageSize'
-      responses:
-        '200':
-          description: Paginated expense list
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/PaginatedMeta'
-                  - type: object
-                    properties:
-                      items:
-                        type: array
-                        items: { $ref: '#/components/schemas/Expense' }
-    post:
-      summary: Record an expense
-      tags: [Expenses]
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [vendor, category, amountMinorUnits, currency, incurredAt]
-              properties:
-                vendor: { type: string }
-                category: { type: string }
-                amountMinorUnits: { type: integer }
-                currency: { type: string }
-                incurredAt: { type: string, format: date-time }
-                taxAmountMinorUnits: { type: integer }
-                paymentMethod: { type: string }
-                description: { type: string }
-                isRecurring: { type: boolean }
-      responses:
-        '201':
-          description: Created expense
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data: { $ref: '#/components/schemas/Expense' }
-  /expenses/{expenseId}:
-    get:
-      summary: Get an expense
-      tags: [Expenses]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: expenseId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Expense detail
-        '404': { $ref: '#/components/responses/NotFound' }
-    patch:
-      summary: Update an expense
-      tags: [Expenses]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: expenseId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Updated expense
-    delete:
-      summary: Delete an expense
-      tags: [Expenses]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: expenseId
-          required: true
-          schema: { type: string }
-      responses:
-        '204':
-          description: Deleted
-
-  # --- Recurring invoices ----------------------------------------------------
-  /recurring-invoices:
-    get:
-      summary: List recurring invoice schedules
-      tags: [Recurring invoices]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - $ref: '#/components/parameters/page'
-        - $ref: '#/components/parameters/pageSize'
-      responses:
-        '200':
-          description: Paginated schedule list
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/PaginatedMeta'
-                  - type: object
-                    properties:
-                      items:
-                        type: array
-                        items: { $ref: '#/components/schemas/RecurringInvoice' }
-    post:
-      summary: Create a recurring invoice schedule
-      tags: [Recurring invoices]
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [customerId, currency, frequency, startDate, lineItems]
-              properties:
-                customerId: { type: string }
-                currency: { type: string }
-                frequency:
-                  { type: string, enum: [DAILY, WEEKLY, MONTHLY, QUARTERLY, ANNUAL, CUSTOM] }
-                customIntervalDays: { type: integer }
-                startDate: { type: string, format: date-time }
-                endDate: { type: string, format: date-time }
-                autoIssue: { type: boolean }
-                dueInDays: { type: integer }
-                lineItems:
-                  type: array
-                  items: { $ref: '#/components/schemas/LineItemInput' }
-      responses:
-        '201':
-          description: Created schedule
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data: { $ref: '#/components/schemas/RecurringInvoice' }
-  /recurring-invoices/{id}:
-    get:
-      summary: Get a recurring invoice schedule
-      tags: [Recurring invoices]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Schedule detail
-        '404': { $ref: '#/components/responses/NotFound' }
-  /recurring-invoices/{id}/pause:
-    post:
-      summary: Pause a recurring invoice schedule
-      tags: [Recurring invoices]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Paused schedule
-  /recurring-invoices/{id}/resume:
-    post:
-      summary: Resume a paused recurring invoice schedule
-      tags: [Recurring invoices]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Resumed schedule
-
-  # --- Dashboard / reports --------------------------------------------------
-  /dashboard:
-    get:
-      summary: Summary stats for the active workspace's dashboard (per-currency, never summed across currencies)
-      tags: [Dashboard]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Dashboard summary
-  /reports/revenue-by-period:
-    get:
-      summary: Revenue grouped by day/week/month
-      tags: [Reports]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Revenue series
-  /reports/revenue-by-customer:
-    get:
-      summary: Revenue grouped by customer
-      tags: [Reports]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Revenue by customer
-  /reports/revenue-by-product:
-    get:
-      summary: Revenue grouped by product/service
-      tags: [Reports]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Revenue by product
-  /reports/outstanding-invoices:
-    get:
-      summary: Currently unpaid/partially-paid invoices
-      tags: [Reports]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Outstanding invoice list
-  /reports/overdue-ageing:
-    get:
-      summary: Overdue invoices bucketed by days-overdue
-      tags: [Reports]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Ageing buckets
-  /reports/payment-methods:
-    get:
-      summary: Payment volume grouped by method
-      tags: [Reports]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Payment method breakdown
-  /reports/tax-summary:
-    get:
-      summary: Tax collected, grouped by rate
-      tags: [Reports]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Tax summary
-  /reports/discount-summary:
-    get:
-      summary: Discounts given, summarized
-      tags: [Reports]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Discount summary
-  /reports/expenses:
-    get:
-      summary: Expense breakdown by category
-      tags: [Reports]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Expense report
-  /reports/profit-estimate:
-    get:
-      summary: Revenue minus recorded expenses (an estimate, not an accounting statement)
-      tags: [Reports]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Profit estimate
-
-  # --- Notifications ---------------------------------------------------------
+        '422': { $ref: '#/components/responses/Unprocessable' }
   /notifications:
-    get:
-      summary: List the caller's notifications, most recent first
+    post:
       tags: [Notifications]
-      security: [{ bearerAuth: [] }]
+      summary: Send an order or payment update
+      description: Requires scope `notifications:send`. Fixed message types; links must be on the business's allow-list.
       parameters:
-        - $ref: '#/components/parameters/page'
-        - $ref: '#/components/parameters/pageSize'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateNotification' }
       responses:
-        '200':
-          description: Paginated notifications plus unreadCount
+        '202':
+          description: Accepted
           content:
             application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/PaginatedMeta'
-                  - type: object
-                    properties:
-                      unreadCount: { type: integer }
-                      items:
-                        type: array
-                        items: { $ref: '#/components/schemas/Notification' }
-  /notifications/{id}/read:
-    post:
-      summary: Mark one notification as read
-      tags: [Notifications]
-      security: [{ bearerAuth: [] }]
+              schema: { $ref: '#/components/schemas/Notification' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /deliveries/{delivery_id}:
+    get:
+      tags: [Deliveries]
+      summary: Retrieve a delivery and its attempts
+      description: Requires scope `deliveries:read`.
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: string }
-      responses:
-        '204':
-          description: Marked read
-  /notifications/read-all:
-    post:
-      summary: Mark all of the caller's notifications as read
-      tags: [Notifications]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '204':
-          description: Marked read
-  /notifications/push-subscribe:
-    post:
-      summary: Register a browser Web Push subscription for the caller
-      tags: [Notifications]
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [endpoint, keys]
-              properties:
-                endpoint: { type: string, format: uri }
-                keys:
-                  type: object
-                  required: [p256dh, auth]
-                  properties:
-                    p256dh: { type: string }
-                    auth: { type: string }
-      responses:
-        '204':
-          description: Subscribed
-    delete:
-      summary: Remove a browser Web Push subscription for the caller
-      tags: [Notifications]
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [endpoint]
-              properties:
-                endpoint: { type: string, format: uri }
-      responses:
-        '204':
-          description: Unsubscribed
-
-  # --- Billing ---------------------------------------------------------------
-  /billing/plans:
-    get:
-      summary: List available subscription plans
-      tags: [Billing]
-      security: [{ bearerAuth: [] }]
+        - { name: delivery_id, in: path, required: true, schema: { type: string, example: dlv_cm0abc123 } }
       responses:
         '200':
-          description: Plan list
-  /billing/subscription:
-    get:
-      summary: Get the active workspace's current subscription
-      tags: [Billing]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Subscription detail
-  /billing/subscription/checkout:
-    post:
-      summary: Initialize a Paystack-hosted checkout to start/change a platform subscription plan
-      tags: [Billing]
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [planCode, interval]
-              properties:
-                planCode: { type: string }
-                interval: { type: string, enum: [MONTHLY, ANNUAL] }
-      responses:
-        '200':
-          description: Paystack checkout authorization URL
-        '409':
-          description: Paystack not configured for this deployment
+          description: OK
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Error' }
-  /billing/subscription/change-plan:
+              schema: { $ref: '#/components/schemas/Delivery' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /telegram/link-tokens:
     post:
-      summary: Manually set the active plan without payment (non-production only — production returns 403)
-      tags: [Billing]
-      security: [{ bearerAuth: [] }]
+      tags: [Telegram]
+      summary: Create a one-time Telegram connection link for a customer
+      description: >
+        Requires scope `telegram:link`. A bot cannot message a customer first: the customer opens the link and
+        presses Start. The link is single use and expires in 15 minutes.
       requestBody:
         required: true
         content:
           application/json:
-            schema:
-              type: object
-              required: [planCode]
-              properties:
-                planCode: { type: string }
-      responses:
-        '200':
-          description: Updated subscription
-        '403':
-          description: Self-service plan changes require a configured payment provider in production
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Error' }
-
-  # --- API keys ----------------------------------------------------------
-  /api-keys:
-    get:
-      summary: List API keys for the active workspace (management only — see below)
-      tags: [API keys]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Key list (never includes the plaintext key)
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items: { $ref: '#/components/schemas/ApiKeySummary' }
-    post:
-      summary: >
-        Issue a new API key. The plaintext key is returned exactly once, in
-        this response only. NOTE: no route currently authenticates a request
-        using an issued key — this endpoint exists to let you provision and
-        revoke key records ahead of that feature. See HANDOVER.md.
-      tags: [API keys]
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name]
-              properties:
-                name: { type: string }
+            schema: { $ref: '#/components/schemas/CreateLinkToken' }
       responses:
         '201':
-          description: Created key, including the one-time plaintext value
+          description: Created
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    allOf:
-                      - $ref: '#/components/schemas/ApiKeySummary'
-                      - type: object
-                        properties:
-                          key: { type: string, description: Plaintext key, shown once }
-  /api-keys/{id}/revoke:
-    post:
-      summary: Revoke an API key (irreversible)
-      tags: [API keys]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema: { type: string }
-      responses:
-        '204':
-          description: Revoked
-
-  # --- Files ---------------------------------------------------------------
-  /files:
-    post:
-      summary: Upload a file (validated by byte signature, not just extension)
-      tags: [Files]
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              properties:
-                file: { type: string, format: binary }
-      responses:
-        '201':
-          description: Created file asset
-  /files/{fileId}/download-url:
-    get:
-      summary: Get a time-limited signed download URL for a file
-      tags: [Files]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: fileId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Signed URL
-  /files/local/{key}:
-    get:
-      summary: Serve a file from the local dev storage adapter (STORAGE_PROVIDER=local only)
-      tags: [Files]
-      security: []
-      parameters:
-        - in: path
-          name: key
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: File bytes
-
-  # --- Workspaces ------------------------------------------------------------
-  /workspaces:
-    post:
-      summary: Create a new workspace (becomes the caller's active workspace)
-      tags: [Workspaces]
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name]
-              properties:
-                name: { type: string }
-      responses:
-        '201':
-          description: Created workspace
-  /workspaces/mine:
-    get:
-      summary: List every workspace the caller belongs to
-      tags: [Workspaces]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Membership list
-  /workspaces/{workspaceId}:
-    get:
-      summary: Get workspace + business profile detail
-      tags: [Workspaces]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: workspaceId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Workspace detail
-        '403':
-          description: Not a member of this workspace
-  /workspaces/{workspaceId}/settings:
-    patch:
-      summary: Update workspace-level settings (name, timezone, default currency)
-      tags: [Workspaces]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: workspaceId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Updated workspace
-  /workspaces/{workspaceId}/business-profile:
-    patch:
-      summary: Update the business profile shown on quotes/invoices/receipts
-      tags: [Workspaces]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: workspaceId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Updated business profile
-  /workspaces/{workspaceId}/members:
-    get:
-      summary: List workspace members
-      tags: [Workspaces]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: workspaceId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Member list
-  /workspaces/{workspaceId}/members/{memberId}:
-    patch:
-      summary: Change a member's role
-      tags: [Workspaces]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: workspaceId
-          required: true
-          schema: { type: string }
-        - in: path
-          name: memberId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Updated membership
+              schema: { $ref: '#/components/schemas/LinkToken' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /telegram/links/{external_customer_id}:
     delete:
-      summary: Remove a member from the workspace
-      tags: [Workspaces]
-      security: [{ bearerAuth: [] }]
+      tags: [Telegram]
+      summary: Disconnect a customer's Telegram
+      description: Requires scope `telegram:link`.
       parameters:
-        - in: path
-          name: workspaceId
-          required: true
-          schema: { type: string }
-        - in: path
-          name: memberId
-          required: true
-          schema: { type: string }
+        - { name: external_customer_id, in: path, required: true, schema: { type: string } }
       responses:
-        '204':
-          description: Removed
-  /workspaces/{workspaceId}/members/me:
-    delete:
-      summary: Leave a workspace (cannot be used by the sole owner)
-      tags: [Workspaces]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: workspaceId
-          required: true
-          schema: { type: string }
-      responses:
-        '204':
-          description: Left the workspace
-  /workspaces/{workspaceId}/invitations:
+        '200': { description: Disconnected }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /sandbox/otp-inbox:
     get:
-      summary: List pending invitations
-      tags: [Workspaces]
-      security: [{ bearerAuth: [] }]
+      tags: [Sandbox]
+      summary: Read the codes a simulated phone received (sandbox keys only)
+      description: Requires scope `otp:create`. Live keys receive `403 sandbox_only`.
       parameters:
-        - in: path
-          name: workspaceId
-          required: true
-          schema: { type: string }
+        - { name: phone, in: query, required: false, schema: { type: string } }
       responses:
-        '200':
-          description: Invitation list
+        '200': { description: OK }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /sandbox/telegram/start:
     post:
-      summary: Invite a new member by email
-      tags: [Workspaces]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: workspaceId
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [email, role]
-              properties:
-                email: { type: string, format: email }
-                role: { type: string, enum: [WORKSPACE_ADMIN, ACCOUNTANT, STAFF, VIEWER] }
-      responses:
-        '201':
-          description: Created invitation
-  /workspaces/{workspaceId}/invitations/{invitationId}:
-    delete:
-      summary: Revoke a pending invitation
-      tags: [Workspaces]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: workspaceId
-          required: true
-          schema: { type: string }
-        - in: path
-          name: invitationId
-          required: true
-          schema: { type: string }
-      responses:
-        '204':
-          description: Revoked
-  /invitations/accept:
-    post:
-      summary: Accept a workspace invitation by token
-      tags: [Workspaces]
-      security: [{ bearerAuth: [] }]
+      tags: [Sandbox]
+      summary: Simulate a customer pressing Start in the Telegram bot (sandbox keys only)
+      description: Requires scope `telegram:link`.
       requestBody:
         required: true
         content:
@@ -1804,454 +219,284 @@ paths:
               required: [token]
               properties:
                 token: { type: string }
+                chat_id: { type: string }
       responses:
-        '200':
-          description: Joined the workspace
-  /workspaces/{workspaceId}/transfer-ownership:
+        '200': { description: Linked }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /sandbox/process-queue:
     post:
-      summary: Transfer workspace ownership to another member (owner only)
-      tags: [Workspaces]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: workspaceId
-          required: true
-          schema: { type: string }
+      tags: [Sandbox]
+      summary: Run this business's queued sandbox jobs now (sandbox keys only)
+      description: Requires scope `deliveries:read`. Pass `{ "fast_forward": true }` to also pull delayed retries and receipts forward.
       requestBody:
-        required: true
         content:
           application/json:
             schema:
               type: object
-              required: [newOwnerUserId]
               properties:
-                newOwnerUserId: { type: string }
+                fast_forward: { type: boolean }
       responses:
-        '200':
-          description: Ownership transferred
-
-  # --- Admin (platform-admin only) --------------------------------------------
-  /admin/stats:
-    get:
-      summary: Platform-wide counts (workspaces, users, invoices, revenue)
-      tags: [Admin]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Stats
-        '403':
-          description: Not a platform admin
-  /admin/users:
-    get:
-      summary: List platform users
-      tags: [Admin]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: User list
-  /admin/workspaces:
-    get:
-      summary: List all workspaces
-      tags: [Admin]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Workspace list
-  /admin/workspaces/{workspaceId}/subscription:
-    patch:
-      summary: Override a workspace's subscription (audited, always available regardless of environment)
-      tags: [Admin]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: workspaceId
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Updated subscription
-  /admin/webhook-events:
-    get:
-      summary: List received payment/WhatsApp webhook events, for debugging
-      tags: [Admin]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Webhook event list
-  /admin/failed-jobs:
-    get:
-      summary: List failed reminder/recurring-invoice jobs
-      tags: [Admin]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Failed job list
-  /admin/support-tickets:
-    get:
-      summary: List support tickets across all workspaces
-      tags: [Admin]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Ticket list
-  /admin/contact-submissions:
-    get:
-      summary: List marketing-site contact form submissions
-      tags: [Admin]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Submission list
-  /admin/audit-logs:
-    get:
-      summary: List platform audit log entries
-      tags: [Admin]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Audit log list
-  /admin/email-logs:
-    get:
-      summary: List sent transactional emails, for debugging delivery
-      tags: [Admin]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Email log list
-  /admin/feature-flags:
-    get:
-      summary: List feature flags
-      tags: [Admin]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Flag list
-  /admin/feature-flags/{key}:
-    put:
-      summary: Toggle a feature flag
-      tags: [Admin]
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - in: path
-          name: key
-          required: true
-          schema: { type: string }
+        '200': { description: Processed }
+        '403': { $ref: '#/components/responses/Forbidden' }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, description: 'sn_test_... or sn_live_...' }
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema: { type: string, maxLength: 255 }
+  responses:
+    Unauthenticated: { description: Missing or invalid API key (`unauthenticated`), content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    Forbidden: { description: 'Forbidden: `insufficient_scope`, `business_suspended`, `activation_required` (live billing is on and the business is not activated), `sandbox_only`', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    NotFound: { description: Not found (also returned for resources of another business or environment), content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    Conflict: { description: 'Conflict: `idempotency_conflict`, `already_linked`', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    ValidationError: { description: 'Malformed or unknown fields (`validation_error`, `invalid_json`)', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    Unprocessable: { description: 'Rule violated: `setup_required`, `consent_required`, `invalid_phone`, `link_not_allowed`, `otp_invalid`, `otp_expired`, `otp_locked`, `unprocessable`', content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    RateLimited: { description: Too many requests; see the Retry-After header, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code: { type: string, example: validation_error }
+            message: { type: string }
+            request_id: { type: string }
+            fields: { type: object, additionalProperties: { type: array, items: { type: string } } }
+    Customer:
+      type: object
+      additionalProperties: false
+      required: [external_customer_id, name]
+      properties:
+        external_customer_id: { type: string }
+        name: { type: string, maxLength: 120 }
+        whatsapp_phone: { type: string, example: '+2348012345678' }
+        email: { type: string, format: email }
+    CreateInvoice:
+      type: object
+      additionalProperties: false
+      required: [external_order_id, document_type, payment, customer, currency, items, channels]
+      properties:
+        external_order_id: { type: string }
+        document_type: { type: string, enum: [invoice, receipt] }
+        payment:
+          type: object
+          additionalProperties: false
+          required: [status]
+          properties:
+            status: { type: string, enum: [paid, unpaid] }
+            reference: { type: string, description: Required for receipts }
+        customer: { $ref: '#/components/schemas/Customer' }
+        currency: { type: string, example: NGN }
+        tax_mode: { type: string, enum: [exclusive, inclusive], default: exclusive }
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [description, quantity, unit_amount_minor]
+            properties:
+              description: { type: string, maxLength: 200 }
+              quantity: { oneOf: [{ type: number }, { type: string }], description: 'Up to 3 decimal places' }
+              unit_amount_minor: { type: integer, minimum: 0 }
+              tax_rate_percent: { type: number, minimum: 0, maximum: 100 }
+        discount_minor: { type: integer, minimum: 0 }
+        due_date: { type: string, format: date }
+        notes: { type: string, maxLength: 500 }
+        channels: { type: array, items: { type: string, enum: [whatsapp, telegram] }, minItems: 1 }
+        consent:
+          type: object
+          properties:
+            whatsapp_transactional: { type: boolean }
+        scenario: { type: string, description: 'Sandbox only. See the sandbox guide.' }
+    DeliveryRef:
+      type: object
+      required: [id, channel, status, simulated]
+      properties:
+        id: { type: string }
+        channel: { type: string, enum: [whatsapp, telegram] }
+        status: { $ref: '#/components/schemas/DeliveryStatus' }
+        simulated: { type: boolean }
+        error_code: { type: string }
+    DeliveryStatus:
+      type: string
+      enum: [queued, processing, provider_accepted, sent, delivered, read, retrying, failed, expired, blocked, sandbox_simulated]
+    Invoice:
+      type: object
+      required: [id, object, status, environment, number, document_type, external_order_id, currency, amounts, payment, pdf, deliveries, request_id]
+      properties:
+        id: { type: string }
+        object: { type: string, enum: [invoice] }
+        status: { type: string, enum: [accepted] }
+        environment: { type: string, enum: [sandbox, live] }
+        number: { type: string, example: INV-000123 }
+        document_type: { type: string, enum: [invoice, receipt] }
+        external_order_id: { type: string }
+        currency: { type: string }
+        amounts:
+          type: object
+          required: [subtotal_minor, discount_minor, tax_minor, total_minor]
+          properties:
+            subtotal_minor: { type: integer }
+            discount_minor: { type: integer }
+            tax_minor: { type: integer }
+            total_minor: { type: integer }
+        payment:
+          type: object
+          required: [status]
+          properties:
+            status: { type: string }
+            reference: { type: string }
+        pdf:
+          type: object
+          required: [status]
+          properties:
+            status: { type: string, enum: [pending, ready] }
+            url: { type: string }
+            url_expires_in_seconds: { type: integer }
+        deliveries: { type: array, items: { $ref: '#/components/schemas/DeliveryRef' } }
+        request_id: { type: string }
+    CreateOtp:
+      type: object
+      additionalProperties: false
+      required: [phone, purpose]
+      properties:
+        phone: { type: string }
+        purpose: { type: string, enum: [login, phone_verification, transaction_confirmation, account_recovery] }
+        customer_ref: { type: string }
+        scenario: { type: string }
+    VerifyOtp:
+      type: object
+      additionalProperties: false
+      required: [code, phone, purpose]
+      properties:
+        code: { type: string, pattern: '^\d{4,8}$' }
+        phone: { type: string }
+        purpose: { type: string, enum: [login, phone_verification, transaction_confirmation, account_recovery] }
+    OtpChallenge:
+      type: object
+      required: [id, object, status, purpose, phone, expires_at, attempts_remaining]
+      properties:
+        id: { type: string }
+        object: { type: string, enum: [otp_challenge] }
+        status: { type: string, enum: [pending, verified, expired, locked, superseded] }
+        purpose: { type: string }
+        phone: { type: string, description: Masked }
+        expires_at: { type: string, format: date-time }
+        attempts_remaining: { type: integer }
+        resend_available_at: { type: string, format: date-time }
+        delivery: { $ref: '#/components/schemas/DeliveryRef' }
+        request_id: { type: string }
+    CreateNotification:
+      type: object
+      additionalProperties: false
+      required: [type, customer, channels]
+      properties:
+        type: { type: string, enum: [order_confirmation, payment_confirmation, shipping_update, general_update] }
+        customer: { $ref: '#/components/schemas/Customer' }
+        channels: { type: array, items: { type: string, enum: [whatsapp, telegram] }, minItems: 1 }
+        fields:
+          type: object
+          additionalProperties: false
+          properties:
+            order_reference: { type: string }
+            amount_minor: { type: integer }
+            currency: { type: string }
+            message: { type: string, maxLength: 300 }
+        link:
+          type: object
+          required: [url]
+          properties:
+            url: { type: string, format: uri }
+        consent:
+          type: object
+          properties:
+            whatsapp_transactional: { type: boolean }
+        scenario: { type: string }
+    Notification:
+      type: object
+      required: [id, object, status, type, deliveries, request_id]
+      properties:
+        id: { type: string }
+        object: { type: string, enum: [notification] }
+        status: { type: string, enum: [accepted] }
+        type: { type: string }
+        deliveries: { type: array, items: { $ref: '#/components/schemas/DeliveryRef' } }
+        request_id: { type: string }
+    Delivery:
+      type: object
+      required: [id, object, kind, channel, status, simulated, environment, attempts, created_at]
+      properties:
+        id: { type: string }
+        object: { type: string, enum: [delivery] }
+        kind: { type: string, enum: [invoice, otp, notification] }
+        channel: { type: string, enum: [whatsapp, telegram] }
+        status: { $ref: '#/components/schemas/DeliveryStatus' }
+        simulated: { type: boolean }
+        environment: { type: string, enum: [sandbox, live] }
+        invoice_id: { type: string }
+        challenge_id: { type: string }
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+        attempts:
+          type: array
+          items:
+            type: object
+            properties:
+              attempt: { type: integer }
+              outcome: { type: string }
+              error_code: { type: string }
+              at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+    CreateLinkToken:
+      type: object
+      additionalProperties: false
+      required: [external_customer_id]
+      properties:
+        external_customer_id: { type: string }
+        name: { type: string }
+        force_relink: { type: boolean }
+    LinkToken:
+      type: object
+      required: [id, object, external_customer_id, url, expires_at]
+      properties:
+        id: { type: string }
+        object: { type: string, enum: [telegram_link_token] }
+        external_customer_id: { type: string }
+        url: { type: string, example: 'https://t.me/<bot>?start=<opaque_token>' }
+        expires_at: { type: string, format: date-time }
+        sandbox: { type: boolean }
+webhooks:
+  sendnaroEvent:
+    post:
+      summary: Events Sendnaro sends to your endpoint
+      description: |
+        Event types: `invoice.generated`, `invoice.failed`, `delivery.sent`, `delivery.delivered`,
+        `delivery.failed`, `otp.verified` (only ids and the outcome, never the code).
+        Header `Sendnaro-Signature: t=<unix>,v1=<hex hmac-sha256(secret, "<t>.<raw body>")>`.
+        Respond 2xx; non-2xx responses are retried with backoff. Retries never resend the customer message.
       requestBody:
-        required: true
         content:
           application/json:
             schema:
               type: object
-              required: [enabled]
+              required: [id, object, type, created, livemode, data]
               properties:
-                enabled: { type: boolean }
+                id: { type: string, example: evt_cm0abc123 }
+                object: { type: string, enum: [event] }
+                type: { type: string }
+                created: { type: integer }
+                livemode: { type: boolean }
+                data: { type: object }
       responses:
-        '200':
-          description: Updated flag
-  /admin/system-health:
-    get:
-      summary: Live provider configuration + database connectivity snapshot
-      tags: [Admin]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: System health snapshot
-
-  # --- Public, token-scoped document endpoints (no auth) ----------------------
-  /public/invoices/{token}:
-    get:
-      summary: Public, token-scoped invoice view (no auth) — also marks the invoice VIEWED
-      tags: [Public]
-      security: []
-      parameters:
-        - in: path
-          name: token
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Invoice detail for public display
-        '404':
-          description: Unknown or revoked token
-  /public/invoices/{token}/pay:
-    post:
-      summary: Initialize an online payment for a publicly-viewed invoice
-      tags: [Public]
-      security: []
-      parameters:
-        - in: path
-          name: token
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [provider]
-              properties:
-                provider: { type: string, enum: [PAYSTACK, FLUTTERWAVE] }
-      responses:
-        '200':
-          description: Gateway checkout URL
-  /public/invoices/{token}/pdf:
-    get:
-      summary: Download a publicly-viewable invoice PDF
-      tags: [Public]
-      security: []
-      parameters:
-        - in: path
-          name: token
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: PDF file
-          content:
-            application/pdf: {}
-  /public/quotes/{token}:
-    get:
-      summary: Public, token-scoped quote view (no auth) — also marks the quote VIEWED
-      tags: [Public]
-      security: []
-      parameters:
-        - in: path
-          name: token
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Quote detail for public display
-        '404':
-          description: Unknown or revoked token
-  /public/quotes/{token}/respond:
-    post:
-      summary: Customer accepts or rejects a quote (public equivalent of the internal /quotes/:id/respond)
-      tags: [Public]
-      security: []
-      parameters:
-        - in: path
-          name: token
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [decision]
-              properties:
-                decision: { type: string, enum: [ACCEPTED, REJECTED] }
-                reason: { type: string }
-      responses:
-        '200':
-          description: Quote transitioned
-  /public/quotes/{token}/pdf:
-    get:
-      summary: Download a publicly-viewable quote PDF
-      tags: [Public]
-      security: []
-      parameters:
-        - in: path
-          name: token
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: PDF file
-          content:
-            application/pdf: {}
-  /public/receipts/{token}:
-    get:
-      summary: Public, token-scoped receipt view (no auth)
-      tags: [Public]
-      security: []
-      parameters:
-        - in: path
-          name: token
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: Receipt detail for public display
-        '404':
-          description: Unknown or revoked token
-  /public/receipts/{token}/pdf:
-    get:
-      summary: Download a publicly-viewable receipt PDF
-      tags: [Public]
-      security: []
-      parameters:
-        - in: path
-          name: token
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: PDF file
-          content:
-            application/pdf: {}
-  /public/receipts/{token}/verify:
-    get:
-      summary: Lightweight authenticity check for a receipt (used by the QR code printed on the PDF)
-      tags: [Public]
-      security: []
-      parameters:
-        - in: path
-          name: token
-          required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: '{ valid: boolean, ...minimal receipt summary }'
-
-  # --- Webhooks (no auth — verified by provider signature instead) ------------
-  /webhooks/paystack:
-    post:
-      summary: >
-        Paystack webhook receiver (HMAC-SHA512 signature over the raw body).
-        Also routes platform-subscription events (charge.success,
-        invoice.payment_failed, subscription.disable/not_renew) to the
-        recurring-billing handler before falling through to one-off
-        invoice-payment handling.
-      tags: [Webhooks]
-      security: []
-      responses:
-        '200':
-          description: Acknowledged (processing happens asynchronously after ack)
-        '400':
-          description: Invalid signature
-  /webhooks/flutterwave:
-    post:
-      summary: Flutterwave webhook receiver (verif-hash constant-time comparison)
-      tags: [Webhooks]
-      security: []
-      responses:
-        '200':
-          description: Acknowledged
-        '400':
-          description: Invalid signature
-  /webhooks/whatsapp:
-    get:
-      summary: Meta Cloud API subscription verification handshake (register this URL in the Meta App dashboard)
-      tags: [Webhooks]
-      security: []
-      parameters:
-        - in: query
-          name: hub.mode
-          schema: { type: string }
-        - in: query
-          name: hub.verify_token
-          schema: { type: string }
-        - in: query
-          name: hub.challenge
-          schema: { type: string }
-      responses:
-        '200':
-          description: Echoes hub.challenge back
-        '403':
-          description: Unknown or missing verify token
-    post:
-      summary: Meta Cloud API delivery-status callback (X-Hub-Signature-256 verified) — updates MessageDelivery rows
-      tags: [Webhooks]
-      security: []
-      responses:
-        '200':
-          description: Acknowledged
-        '400':
-          description: Invalid signature
-
-  # --- Cron (CRON_SECRET bearer, not a user session) --------------------------
-  /cron/overdue-sweep:
-    post:
-      summary: Mark ISSUED/SENT/VIEWED/PARTIALLY_PAID invoices past their due date as OVERDUE
-      tags: [Cron]
-      security: []
-      parameters:
-        - in: header
-          name: Authorization
-          required: true
-          schema: { type: string, example: 'Bearer <CRON_SECRET>' }
-      responses:
-        '200':
-          description: Number of invoices swept
-        '401':
-          description: Invalid cron secret
-  /cron/recurring-invoices:
-    post:
-      summary: Generate due invoices from active recurring schedules
-      tags: [Cron]
-      security: []
-      parameters:
-        - in: header
-          name: Authorization
-          required: true
-          schema: { type: string, example: 'Bearer <CRON_SECRET>' }
-      responses:
-        '200':
-          description: Number of invoices generated
-        '401':
-          description: Invalid cron secret
-  /cron/reminders:
-    post:
-      summary: Dispatch due ReminderSchedule rows (email auto-sends; WhatsApp auto-sends only with Meta Cloud API configured, otherwise creates a notification)
-      tags: [Cron]
-      security: []
-      parameters:
-        - in: header
-          name: Authorization
-          required: true
-          schema: { type: string, example: 'Bearer <CRON_SECRET>' }
-      responses:
-        '200':
-          description: '{ processed, skipped }'
-        '401':
-          description: Invalid cron secret
-
-  # --- Contact / support -------------------------------------------------------
-  /contact:
-    post:
-      summary: Marketing-site contact form submission (public, rate-limited)
-      tags: [Contact]
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name, email, message]
-              properties:
-                name: { type: string }
-                email: { type: string, format: email }
-                message: { type: string }
-      responses:
-        '201':
-          description: Submission recorded
-  /support-tickets:
-    get:
-      summary: List the caller's support tickets
-      tags: [Contact]
-      security: [{ bearerAuth: [] }]
-      responses:
-        '200':
-          description: Ticket list
-    post:
-      summary: Create a support ticket
-      tags: [Contact]
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [subject, message]
-              properties:
-                subject: { type: string }
-                message: { type: string }
-      responses:
-        '201':
-          description: Created ticket
+        '200': { description: Acknowledged }

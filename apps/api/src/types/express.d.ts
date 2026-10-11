@@ -1,4 +1,4 @@
-import type { WorkspaceRole } from '@invoicetap/shared';
+import type { WorkspaceRole } from '@sendnaro/shared';
 
 export interface AuthContext {
   userId: string;

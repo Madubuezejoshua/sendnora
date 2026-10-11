@@ -1,4 +1,4 @@
-// InvoiceTap database schema.
+// Sendnaro database schema.
 //
 // Design notes (see DATABASE.md for the full rationale):
 // - Every tenant-owned row carries a `workspaceId` column with an index, and

@@ -5,7 +5,7 @@
  * admin. Never seeds demo business data here — see seed-demo.ts for that,
  * which refuses to run when NODE_ENV=production.
  */
-import { PLANS } from '@invoicetap/shared';
+import { PLANS } from '@sendnaro/shared';
 import { Prisma, PrismaClient } from '../generated/client/index.js';
 import { hashPassword } from '../src/password.js';
 

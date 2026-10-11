@@ -1,4 +1,4 @@
-import type { ApiEnvironment, DeliveryChannel, DeliveryKind } from '@invoicetap/database';
+import type { ApiEnvironment, DeliveryChannel, DeliveryKind } from '@sendnaro/database';
 
 /** Result of one provider call. The engine, not the provider, decides what to do next. */
 export type ProviderOutcome =

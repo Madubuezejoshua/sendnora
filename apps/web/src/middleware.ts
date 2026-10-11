@@ -22,23 +22,11 @@ const PUBLIC_PREFIXES = [
   '/pay/',
   '/api/auth',
   '/api/health',
+  // The public product API authenticates with API keys inside apps/api; it must not hit the session redirect.
+  '/api/v1',
 ];
 
-const MARKETING_PATHS = new Set([
-  '/',
-  '/features',
-  '/pricing',
-  '/templates',
-  '/security',
-  '/faq',
-  '/about',
-  '/contact',
-  '/privacy',
-  '/terms',
-  '/refund-policy',
-  '/cookie-policy',
-  '/acceptable-use',
-]);
+const MARKETING_PATHS = new Set(['/', '/docs', '/pricing', '/contact', '/privacy', '/terms']);
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
@@ -49,7 +37,7 @@ export default auth((req) => {
 
   if (isPublic) {
     if (isAuthed && (pathname === '/login' || pathname === '/register')) {
-      return NextResponse.redirect(new URL('/dashboard', req.url));
+      return NextResponse.redirect(new URL('/console', req.url));
     }
     return NextResponse.next();
   }
@@ -57,7 +45,7 @@ export default auth((req) => {
   if (pathname.startsWith('/admin')) {
     if (!isAuthed) return NextResponse.redirect(new URL('/login', req.url));
     if (!req.auth?.user.isPlatformAdmin)
-      return NextResponse.redirect(new URL('/dashboard', req.url));
+      return NextResponse.redirect(new URL('/console', req.url));
     return NextResponse.next();
   }
 

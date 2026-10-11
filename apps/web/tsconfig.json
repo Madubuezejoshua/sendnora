@@ -1,5 +1,5 @@
 {
-  "extends": "@invoicetap/config/tsconfig/nextjs.json",
+  "extends": "@sendnaro/config/tsconfig/nextjs.json",
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {

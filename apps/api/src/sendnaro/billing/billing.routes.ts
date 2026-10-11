@@ -1,6 +1,6 @@
 import { Router, raw } from 'express';
-import { prisma } from '@invoicetap/database';
-import { AppError } from '@invoicetap/shared';
+import { prisma } from '@sendnaro/database';
+import { AppError } from '@sendnaro/shared';
 import { logger } from '../../config/logger.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { requireWorkspace } from '../../middleware/workspace-context.js';

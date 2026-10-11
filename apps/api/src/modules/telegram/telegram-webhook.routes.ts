@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { timingSafeEqual } from 'node:crypto';
-import { parseApiEnv } from '@invoicetap/config/env';
+import { parseApiEnv } from '@sendnaro/config/env';
 import { logger } from '../../config/logger.js';
 import { webhookRateLimit } from '../../middleware/rate-limit.js';
 import { handleTelegramUpdate } from '../../services/telegram/telegram.service.js';

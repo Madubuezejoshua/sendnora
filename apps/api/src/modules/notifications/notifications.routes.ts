@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import { prisma } from '@invoicetap/database';
+import { prisma } from '@sendnaro/database';
 import {
   paginationQuerySchema,
   pushSubscribeSchema,
   pushUnsubscribeSchema,
   type PaginationQuery,
-} from '@invoicetap/shared';
+} from '@sendnaro/shared';
 import { requireAuth } from '../../middleware/auth.js';
 import { validateBody, validateQuery } from '../../middleware/validate.js';
 import { paginate, toSkipTake } from '../../services/pagination.js';

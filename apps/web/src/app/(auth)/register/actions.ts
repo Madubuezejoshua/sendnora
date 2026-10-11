@@ -1,9 +1,9 @@
 'use server';
 
 import { randomBytes } from 'node:crypto';
-import { prisma } from '@invoicetap/database';
-import { hashPassword } from '@invoicetap/database/password';
-import { registerSchema } from '@invoicetap/shared';
+import { prisma } from '@sendnaro/database';
+import { hashPassword } from '@sendnaro/database/password';
+import { registerSchema } from '@sendnaro/shared';
 import { getWebEnv } from '@/lib/env';
 import { sendAuthEmail, verifyEmailContent } from '@/lib/auth-email';
 
@@ -41,7 +41,7 @@ export async function registerAction(input: {
   const env = getWebEnv();
   const verifyUrl = `${env.NEXT_PUBLIC_APP_URL}/verify-email?token=${token}&email=${encodeURIComponent(user.email)}`;
   const content = verifyEmailContent(user.name ?? user.email, verifyUrl);
-  await sendAuthEmail(user.email, content.subject, content.html, content.text).catch(() => {});
+  await sendAuthEmail(user.email, content.subject, content.html, content.text).catch((err: Error) => console.error('Auth email was not sent:', err.message));
 
   return { ok: true };
 }

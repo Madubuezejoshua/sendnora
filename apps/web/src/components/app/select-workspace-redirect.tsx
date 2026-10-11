@@ -11,7 +11,7 @@ import { usePathname } from 'next/navigation';
 export function SelectWorkspaceRedirect({ workspaceId }: { workspaceId: string }) {
   const pathname = usePathname();
   React.useEffect(() => {
-    const redirect = pathname && pathname !== '/' ? pathname : '/dashboard';
+    const redirect = pathname && pathname !== '/' ? pathname : '/console';
     window.location.replace(
       `/api/workspace/select?id=${encodeURIComponent(workspaceId)}&redirect=${encodeURIComponent(redirect)}`,
     );

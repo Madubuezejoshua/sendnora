@@ -1,11 +1,11 @@
-import type { Prisma } from '@invoicetap/database';
+import type { Prisma } from '@sendnaro/database';
 import {
   DEFAULT_NUMBERING_FORMATS,
   formatDocumentNumber,
   validateNumberingFormat,
   type DocumentType,
   type NumberingFormat,
-} from '@invoicetap/shared';
+} from '@sendnaro/shared';
 
 /**
  * Atomically allocates the next sequence number for a workspace + document

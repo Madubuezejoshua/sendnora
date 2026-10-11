@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { prisma } from '@invoicetap/database';
+import { prisma } from '@sendnaro/database';
 import { app, auth, bearer, invoiceBody, makeBusiness, makeKey, sessionToken } from './sn-helpers.js';
 import { generateSecret, hashKey } from '../../src/sendnaro/keys.js';
 

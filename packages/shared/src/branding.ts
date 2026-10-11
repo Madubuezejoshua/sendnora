@@ -1,37 +1,31 @@
 /**
- * Centralized product branding.
+ * Centralized product branding. Nothing outside this module should hardcode the product name,
+ * domain or colours.
  *
- * "InvoiceTap" is a working name — the whole product must be renameable by
- * editing this one file (plus swapping the logo/favicon assets referenced
- * here). Nothing outside this module should hardcode the product name,
- * support email, or social handles. See HANDOVER.md for the full rebrand
- * checklist.
+ * LOGO / FAVICON SLOTS: until final artwork is supplied the UI renders a restrained text wordmark.
+ * To install artwork, drop the files in apps/web/public/brand/ and set the paths below
+ * (for example `logo: '/brand/logo.svg'`, `icon: '/brand/icon.png'`, `favicon: '/brand/favicon.ico'`).
+ * No other code change is needed.
  */
 export const BRAND = {
-  productName: 'InvoiceTap',
-  shortName: 'InvoiceTap',
-  legalEntityName: 'InvoiceTap',
-  tagline: 'Invoices, quotes and receipts your customers can pay in minutes.',
+  productName: 'Sendnaro',
+  shortName: 'Sendnaro',
+  /** Intended production domain. Writing it here does not mean it is deployed or configured. */
+  domain: 'sendnaro.com',
+  tagline: 'Customer messages, delivered automatically.',
   description:
-    'InvoiceTap helps freelancers and small businesses create professional invoices and quotes, get paid online, and share documents instantly over WhatsApp and email.',
-  domain: 'invoicetap.app',
-  supportEmail: 'support@invoicetap.app',
-  salesEmail: 'hello@invoicetap.app',
-  socials: {
-    twitter: '',
-    linkedin: '',
-    instagram: '',
-  },
+    'Connect your website or app to send invoices, WhatsApp verification codes, and order updates through one API.',
   colors: {
-    primary: '#0F172A', // deep navy/slate
-    accent: '#10B981', // emerald/teal success
-    warning: '#F59E0B', // amber
-    destructive: '#EF4444', // red
+    primary: '#0B1B33',
+    accent: '#0E9F6E',
+    warning: '#B45309',
+    destructive: '#DC2626',
   },
-  logo: {
-    lightPath: '/brand/logo-light.svg',
-    darkPath: '/brand/logo-dark.svg',
-    iconPath: '/brand/icon.svg',
+  /** Configurable artwork slots. `null` means "use the text wordmark". */
+  assets: {
+    logo: null as string | null,
+    icon: null as string | null,
+    favicon: null as string | null,
   },
 } as const;
 

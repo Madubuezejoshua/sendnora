@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { prisma } from '@invoicetap/database';
-import { Button } from '@invoicetap/ui';
+import { prisma } from '@sendnaro/database';
+import { Button } from '@sendnaro/ui';
 
 export const metadata: Metadata = { title: 'Verify email' };
 

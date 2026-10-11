@@ -1,15 +1,15 @@
-# InvoiceTap
+# Sendnaro
 
 Invoices, quotes and receipts your customers can pay in minutes — built for
 freelancers and small businesses, with WhatsApp-first sharing and
 Paystack/Flutterwave payment collection.
 
-> "InvoiceTap" is a working name. See HANDOVER.md for the one-file rebrand
+> "Sendnaro" is a working name. See HANDOVER.md for the one-file rebrand
 > checklist.
 
 ## Overview
 
-InvoiceTap is a multi-tenant SaaS: businesses ("workspaces") create quotes
+Sendnaro is a multi-tenant SaaS: businesses ("workspaces") create quotes
 and invoices, share them with customers over WhatsApp or email, collect
 payments online or record them manually, and get automatic receipts,
 reminders and reports. Full requirements: PRODUCT_REQUIREMENTS.md. Full
@@ -67,14 +67,14 @@ variable-by-variable reference: ENVIRONMENT.md.
 
 ```bash
 docker compose up -d
-npm run db:generate --workspace=@invoicetap/database
-npm run build --workspace=@invoicetap/database            # compiles the package — see SETUP.md
-npm run db:migrate --workspace=@invoicetap/database
-npm run db:seed --workspace=@invoicetap/database         # plans + optional platform admin
-npm run db:seed:demo --workspace=@invoicetap/database     # demo workspace, refuses to run in production
+npm run db:generate --workspace=@sendnaro/database
+npm run build --workspace=@sendnaro/database            # compiles the package — see SETUP.md
+npm run db:migrate --workspace=@sendnaro/database
+npm run db:seed --workspace=@sendnaro/database         # plans + optional platform admin
+npm run db:seed:demo --workspace=@sendnaro/database     # demo workspace, refuses to run in production
 ```
 
-Demo login after seeding: `demo@invoicetap.app` / `DemoPassword123!`.
+Demo login after seeding: `demo@sendnaro.com` / `DemoPassword123!`.
 
 ## Development
 
@@ -90,9 +90,9 @@ Open http://localhost:3000.
 
 ```bash
 npm run test                                    # every workspace's tests
-npm run test --workspace=@invoicetap/shared      # unit tests (no DB needed)
-npm run test --workspace=@invoicetap/api         # unit + integration (needs Postgres)
-npm run test:e2e --workspace=@invoicetap/web     # Playwright (needs the full stack + Postgres)
+npm run test --workspace=@sendnaro/shared      # unit tests (no DB needed)
+npm run test --workspace=@sendnaro/api         # unit + integration (needs Postgres)
+npm run test:e2e --workspace=@sendnaro/web     # Playwright (needs the full stack + Postgres)
 ```
 
 See TESTING.md for exactly what's covered, and — importantly — what was
@@ -134,7 +134,7 @@ Backblaze B2 (storage) + Resend (email). Full steps: DEPLOYMENT.md.
 - **"Invalid environment configuration" on boot** — a required variable is
   missing; the error message from `packages/config/src/env.ts` names it.
 - **Prisma client errors after pulling schema changes** — run
-  `npm run db:generate --workspace=@invoicetap/database`.
+  `npm run db:generate --workspace=@sendnaro/database`.
 - **`npm install` is very slow on Windows** — this is typically real-time
   antivirus scanning of `node_modules` writes, not a hang; give it time.
 - **Docker Desktop won't come up** — the app still runs against any
@@ -144,7 +144,7 @@ Backblaze B2 (storage) + Resend (email). Full steps: DEPLOYMENT.md.
   emails to `apps/api/.dev-emails/*.html` and logs a preview instead of
   sending; switch to `EMAIL_PROVIDER=resend` with real credentials to send
   for real.
-- **`npm run build --workspace=@invoicetap/web` fails with `EPERM:
+- **`npm run build --workspace=@sendnaro/web` fails with `EPERM:
 operation not permitted, scandir 'C:\Users\<you>\Application Data'` (or
   `...\Cookies`, `...\Local Settings`)** — this is a Windows-specific
   quirk, not a bug in this codebase: some upgraded/legacy Windows user

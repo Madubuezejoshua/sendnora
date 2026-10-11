@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { createWorkspaceSchema, CURRENCIES, type CreateWorkspaceInput } from '@invoicetap/shared';
+import { createWorkspaceSchema, CURRENCIES, type CreateWorkspaceInput } from '@sendnaro/shared';
 import {
   Button,
   Card,
@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
   toast,
-} from '@invoicetap/ui';
+} from '@sendnaro/ui';
 import { apiBrowserFetch } from '@/lib/api-browser';
 
 const BUSINESS_TYPES = [
@@ -71,7 +71,7 @@ export default function OnboardingPage() {
       });
       document.cookie = `itap_active_workspace=${result.data.id}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
       toast.success('Workspace created');
-      router.push('/dashboard');
+      router.push('/console');
       router.refresh();
     } catch {
       toast.error('Could not create workspace');

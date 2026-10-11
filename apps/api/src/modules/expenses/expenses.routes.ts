@@ -3,7 +3,7 @@ import {
   createExpenseSchema,
   paginationQuerySchema,
   updateExpenseSchema,
-} from '@invoicetap/shared';
+} from '@sendnaro/shared';
 import { requireAuth } from '../../middleware/auth.js';
 import { requireWorkspace } from '../../middleware/workspace-context.js';
 import { requirePermission } from '../../middleware/authorize.js';

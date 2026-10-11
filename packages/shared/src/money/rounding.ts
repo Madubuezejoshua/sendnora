@@ -3,7 +3,7 @@ import Decimal from 'decimal.js';
 /**
  * Centralized rounding policy for all monetary calculations.
  *
- * InvoiceTap uses round-half-up (a.k.a. "commercial rounding") at the
+ * Sendnaro uses round-half-up (a.k.a. "commercial rounding") at the
  * minor-unit boundary, which is the convention most small businesses and
  * tax authorities expect on an invoice line. This is the ONLY place that
  * should call Decimal's rounding — every other module must delegate here

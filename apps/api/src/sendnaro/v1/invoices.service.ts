@@ -1,11 +1,11 @@
-import { prisma, Prisma, type IssuedDocument } from '@invoicetap/database';
+import { prisma, Prisma, type IssuedDocument } from '@sendnaro/database';
 import {
   AppError,
   Money,
   computeDocumentTotals,
   getCurrency,
   isSupportedCurrency,
-} from '@invoicetap/shared';
+} from '@sendnaro/shared';
 import { fileTypeFromBuffer } from 'file-type';
 import { logger } from '../../config/logger.js';
 import { renderDocumentPdf } from '../../services/pdf/pdf.service.js';

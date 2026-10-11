@@ -3,7 +3,7 @@
 ## Mission
 
 "Create professional invoices, get paid and send receipts through WhatsApp
-in minutes." InvoiceTap helps freelancers, small businesses, agencies and
+in minutes." Sendnaro helps freelancers, small businesses, agencies and
 merchants create quotations, invoices and receipts; get paid online; and
 reach customers who primarily communicate over WhatsApp — with particular
 attention to African markets (local currencies, WhatsApp-first sharing,

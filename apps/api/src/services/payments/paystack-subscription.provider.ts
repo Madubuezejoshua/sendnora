@@ -4,7 +4,7 @@ const PAYSTACK_BASE_URL = 'https://api.paystack.co';
 
 /**
  * Paystack Plan + Subscription API — used ONLY for platform billing (a
- * workspace paying for its own InvoiceTap plan), always with the
+ * workspace paying for its own Sendnaro plan), always with the
  * platform's own PAYSTACK_SECRET_KEY, never a workspace's configured
  * credentials (those are for that workspace collecting payment from ITS
  * OWN customers — a completely different merchant relationship). See
@@ -18,7 +18,7 @@ const PAYSTACK_BASE_URL = 'https://api.paystack.co';
  */
 
 function paystackPlanName(planCode: string, interval: 'MONTHLY' | 'YEARLY'): string {
-  return `invoicetap_${planCode.toLowerCase()}_${interval.toLowerCase()}`;
+  return `sendnaro_${planCode.toLowerCase()}_${interval.toLowerCase()}`;
 }
 
 export interface EnsurePlanParams {
@@ -30,7 +30,7 @@ export interface EnsurePlanParams {
 }
 
 /**
- * Finds or creates the Paystack Plan for a given InvoiceTap plan+interval.
+ * Finds or creates the Paystack Plan for a given Sendnaro plan+interval.
  * Idempotent by name (Paystack has no natural external-id field), so this
  * does one extra list call the first time a given plan/interval is
  * checked out — negligible cost since it's cached implicitly by Paystack

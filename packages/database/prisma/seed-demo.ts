@@ -9,7 +9,7 @@ import {
   DEFAULT_NUMBERING_FORMATS,
   formatDocumentNumber,
   generatePublicToken,
-} from '@invoicetap/shared';
+} from '@sendnaro/shared';
 import { PrismaClient, type DocumentType } from '../generated/client/index.js';
 import { hashPassword } from '../src/password.js';
 
@@ -20,7 +20,7 @@ if (process.env.NODE_ENV === 'production') {
 
 const prisma = new PrismaClient();
 
-const DEMO_USER_EMAIL = 'demo@invoicetap.app';
+const DEMO_USER_EMAIL = 'demo@sendnaro.com';
 const DEMO_USER_PASSWORD = 'DemoPassword123!';
 const DEMO_WORKSPACE_SLUG = 'acme-demo-studio';
 

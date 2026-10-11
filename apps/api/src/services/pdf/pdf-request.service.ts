@@ -1,5 +1,5 @@
-import { prisma } from '@invoicetap/database';
-import { AppError } from '@invoicetap/shared';
+import { prisma } from '@sendnaro/database';
+import { AppError } from '@sendnaro/shared';
 import type { PdfTemplateKey } from './types.js';
 import {
   buildInvoicePdfData,
@@ -9,7 +9,7 @@ import {
 } from './pdf.service.js';
 import { getStorageProvider } from '../storage/storage.service.js';
 import { LocalStorageProvider } from '../storage/local.provider.js';
-import { parseApiEnv } from '@invoicetap/config/env';
+import { parseApiEnv } from '@sendnaro/config/env';
 
 async function resolveLogoDataUri(
   logoFileAssetId: string | null | undefined,

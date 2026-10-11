@@ -12,10 +12,10 @@ export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get('id');
   const requested = req.nextUrl.searchParams.get('redirect') ?? '';
   // same-site paths only — never let this become an open redirect
-  const redirectTo = /^\/(?![/\\])/.test(requested) ? requested : '/dashboard';
+  const redirectTo = /^\/(?![/\\])/.test(requested) ? requested : '/console';
 
   if (!id) {
-    return NextResponse.redirect(new URL('/dashboard', req.url));
+    return NextResponse.redirect(new URL('/console', req.url));
   }
 
   const res = NextResponse.redirect(new URL(redirectTo, req.url));

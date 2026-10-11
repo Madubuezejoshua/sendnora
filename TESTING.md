@@ -10,25 +10,25 @@ because they're where a bug has real financial or security consequences.
 
 ```bash
 # Unit tests (packages/shared — no database needed)
-npm run test --workspace=@invoicetap/shared
+npm run test --workspace=@sendnaro/shared
 
 # Unit + integration tests (apps/api — needs a running Postgres)
 docker compose up -d
-npm run db:generate --workspace=@invoicetap/database
-npm run db:migrate:deploy --workspace=@invoicetap/database
-npm run test --workspace=@invoicetap/api
+npm run db:generate --workspace=@sendnaro/database
+npm run db:migrate:deploy --workspace=@sendnaro/database
+npm run test --workspace=@sendnaro/api
 
 # Everything, every workspace
 npm run test
 
 # Playwright end-to-end (apps/web — needs the full stack running)
-npm run test:e2e --workspace=@invoicetap/web
+npm run test:e2e --workspace=@sendnaro/web
 ```
 
 ## What's covered
 
 **`packages/shared` (82 unit tests, all passing as of this build — see
-TEST_RESULTS in the final report / re-run `npm run test --workspace=@invoicetap/shared`
+TEST_RESULTS in the final report / re-run `npm run test --workspace=@sendnaro/shared`
 to confirm on your machine):**
 
 - `money/money.test.ts` — integer minor-unit arithmetic, round-half-up
@@ -84,12 +84,12 @@ environment that produced this repository:
 
 - `npm run typecheck` passes with zero errors across all six workspaces
   under TypeScript strict mode.
-- `npm run build --workspace=@invoicetap/api` produces a working
+- `npm run build --workspace=@sendnaro/api` produces a working
   production bundle; running it with synthetic env vars and no database
   correctly serves `GET /health` → 200, `GET /ready` → 503 (accurately
   detects the unreachable database), and a protected route without a
   token → 401 with the expected error shape.
-- `npm run build --workspace=@invoicetap/web` succeeds and statically/
+- `npm run build --workspace=@sendnaro/web` succeeds and statically/
   dynamically generates all 46 routes.
 
 ## What's NOT yet covered (honest gap list)

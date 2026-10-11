@@ -1,7 +1,7 @@
 import React from 'react';
 import { renderToBuffer } from '@react-pdf/renderer';
 import QRCode from 'qrcode';
-import { getCurrency } from '@invoicetap/shared';
+import { getCurrency } from '@sendnaro/shared';
 import { DocumentPdf } from './document.js';
 import type { PdfDocumentData, PdfLineItem, PdfTemplateKey } from './types.js';
 

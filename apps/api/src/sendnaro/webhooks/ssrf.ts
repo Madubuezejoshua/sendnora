@@ -2,7 +2,7 @@ import dns from 'node:dns';
 import http from 'node:http';
 import https from 'node:https';
 import net from 'node:net';
-import { AppError } from '@invoicetap/shared';
+import { AppError } from '@sendnaro/shared';
 
 /**
  * SSRF defence for merchant webhook targets.

@@ -1,8 +1,10 @@
 import { Router, type NextFunction, type Request, type RequestHandler, type Response } from 'express';
-import { prisma } from '@invoicetap/database';
-import { AppError } from '@invoicetap/shared';
+import { prisma } from '@sendnaro/database';
+import { AppError } from '@sendnaro/shared';
 import { requireApiKey } from '../auth.js';
 import { parsePublicId, publicId } from '../ids.js';
+import { drainOutbox } from '../jobs.js';
+import { kickAfterAccept } from '../kick.js';
 import { consumeLinkToken } from './telegram.service.js';
 import { v1ErrorHandler, v1NotFound } from './errors.js';
 import {
@@ -22,6 +24,8 @@ import * as telegram from './telegram.service.js';
  * the key (req.sn); nothing in the body, query or headers can select a different business.
  */
 export const sendnaroV1Router = Router();
+
+sendnaroV1Router.use(kickAfterAccept);
 
 const wrap =
   (fn: (req: Request, res: Response) => Promise<void>): RequestHandler =>
@@ -144,6 +148,34 @@ sendnaroV1Router.post('/sandbox/telegram/start', requireApiKey('telegram:link'),
   const result = await consumeLinkToken({ token, chatId: chat_id ?? `sandbox_chat_${Date.now()}`, environment: 'SANDBOX', workspaceId: req.sn!.workspaceId });
   if (!result.ok) throw new AppError('UNPROCESSABLE', `Link token rejected: ${result.reason}`);
   res.json({ linked: true, request_id: req.sn!.requestId });
+}));
+
+/**
+ * Sandbox only: run this business's queued sandbox jobs right now. On serverless deployments there is no
+ * always-on worker, so the playground calls this to make the asynchronous pipeline visible. With
+ * `fast_forward` it also pulls delayed jobs (retries, delayed receipts) forward instead of waiting.
+ */
+sendnaroV1Router.post('/sandbox/process-queue', requireApiKey('deliveries:read'), wrap(async (req, res) => {
+  if (req.sn!.environment !== 'SANDBOX') {
+    throw new AppError('SANDBOX_ONLY', 'Queue processing on demand is only available with sandbox keys');
+  }
+  const { workspaceId } = req.sn!;
+  if ((req.body as { fast_forward?: boolean } | undefined)?.fast_forward) {
+    await prisma.outboxEvent.updateMany({
+      where: { workspaceId, environment: 'SANDBOX', status: 'PENDING', runAt: { gt: new Date() } },
+      data: { runAt: new Date() },
+    });
+  }
+  let processed = 0;
+  for (let i = 0; i < 6; i += 1) {
+    const r = await drainOutbox({ workspaceId, environment: 'SANDBOX', maxRounds: 5 });
+    processed += r.processed;
+    if (r.processed === 0) break;
+    if ((req.body as { fast_forward?: boolean } | undefined)?.fast_forward) {
+      await prisma.outboxEvent.updateMany({ where: { workspaceId, environment: 'SANDBOX', status: 'PENDING', runAt: { gt: new Date() } }, data: { runAt: new Date() } });
+    }
+  }
+  res.json({ object: 'queue_run', processed, request_id: req.sn!.requestId });
 }));
 
 sendnaroV1Router.use(v1NotFound);

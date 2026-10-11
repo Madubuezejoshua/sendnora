@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Button, FormField, Input, Textarea, toast } from '@invoicetap/ui';
+import { Button, FormField, Input, Textarea, toast } from '@sendnaro/ui';
 
 const schema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(120),
@@ -25,7 +25,7 @@ export function ContactForm() {
 
   const onSubmit = async (values: FormValues) => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/contact`, {
+      const res = await fetch('/api/v1/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(values),

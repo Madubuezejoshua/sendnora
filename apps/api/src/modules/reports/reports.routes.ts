@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { currencyCodeSchema } from '@invoicetap/shared';
+import { currencyCodeSchema } from '@sendnaro/shared';
 import { requireAuth } from '../../middleware/auth.js';
 import { requireWorkspace } from '../../middleware/workspace-context.js';
 import { requirePermission } from '../../middleware/authorize.js';

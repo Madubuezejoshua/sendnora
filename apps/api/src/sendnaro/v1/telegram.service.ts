@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { prisma } from '@invoicetap/database';
-import { AppError } from '@invoicetap/shared';
-import { parseApiEnv } from '@invoicetap/config/env';
+import { prisma } from '@sendnaro/database';
+import { AppError } from '@sendnaro/shared';
+import { parseApiEnv } from '@sendnaro/config/env';
 import type { SnContext } from '../context.js';
 import { assertCanSend } from '../entitlement.js';
 import { publicId } from '../ids.js';

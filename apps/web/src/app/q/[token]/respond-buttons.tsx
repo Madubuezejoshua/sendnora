@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Button, toast } from '@invoicetap/ui';
+import { Button, toast } from '@sendnaro/ui';
 
 export function RespondButtons({ token }: { token: string }) {
   const [loading, setLoading] = React.useState<'ACCEPTED' | 'REJECTED' | null>(null);

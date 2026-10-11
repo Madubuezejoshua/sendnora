@@ -3,7 +3,7 @@ import {
   type DocumentLineItemInput,
   type DiscountSpec,
   type TaxMode,
-} from '@invoicetap/shared';
+} from '@sendnaro/shared';
 
 export interface DocumentTotalsRequest {
   currency: string;

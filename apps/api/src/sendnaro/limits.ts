@@ -1,5 +1,5 @@
-import { prisma } from '@invoicetap/database';
-import { AppError } from '@invoicetap/shared';
+import { prisma } from '@sendnaro/database';
+import { AppError } from '@sendnaro/shared';
 
 /**
  * Fixed-window counters kept in Postgres so limits hold across serverless instances and restarts.

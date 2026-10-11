@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { prisma } from '@invoicetap/database';
-import { parseApiEnv } from '@invoicetap/config/env';
+import { prisma } from '@sendnaro/database';
+import { parseApiEnv } from '@sendnaro/config/env';
 import { logger } from '../../config/logger.js';
 import type { EmailProvider } from './provider.interface.js';
 import { ResendEmailProvider } from './resend.provider.js';

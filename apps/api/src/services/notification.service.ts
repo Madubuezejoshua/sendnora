@@ -1,4 +1,4 @@
-import { prisma, type NotificationType } from '@invoicetap/database';
+import { prisma, type NotificationType } from '@sendnaro/database';
 import { sendPushToUser } from './push.service.js';
 
 export interface CreateNotificationInput {

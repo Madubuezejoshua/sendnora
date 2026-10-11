@@ -1,4 +1,4 @@
-import { prisma } from '@invoicetap/database';
+import { prisma } from '@sendnaro/database';
 import {
   AppError,
   assertInvoiceTransition,
@@ -12,13 +12,13 @@ import {
   type InvoiceStatus,
   type PaginationQuery,
   type RecordPaymentInput,
-} from '@invoicetap/shared';
+} from '@sendnaro/shared';
 import { allocateDocumentNumber } from '../../services/numbering.service.js';
 import { computeAndShapeLineItems } from '../../services/line-items.service.js';
 import { paginate, toSkipTake } from '../../services/pagination.js';
 import { assertCanIssueInvoice, incrementInvoiceUsage } from '../../services/billing.service.js';
 import { createNotification } from '../../services/notification.service.js';
-import type { Prisma } from '@invoicetap/database';
+import type { Prisma } from '@sendnaro/database';
 
 export async function listInvoices(
   workspaceId: string,

@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Email **security@invoicetap.app** (update this address after rebranding —
+Email **security@sendnaro.com** (update this address after rebranding —
 see HANDOVER.md) with a description, reproduction steps, and impact
 assessment. Please do not open a public GitHub issue for security reports.
 We aim to acknowledge reports within 2 business days.

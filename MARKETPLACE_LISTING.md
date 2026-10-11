@@ -9,7 +9,7 @@ once real information exists.
 
 ## Title
 
-InvoiceTap — Invoicing & WhatsApp-first Payment Collection SaaS (source
+Sendnaro — Invoicing & WhatsApp-first Payment Collection SaaS (source
 code, pre-revenue)
 
 ## Short summary
@@ -22,7 +22,7 @@ as source code + infrastructure design; no existing customer base.
 
 ## Full description
 
-InvoiceTap lets a freelancer or small business create a professional
+Sendnaro lets a freelancer or small business create a professional
 invoice, share it over WhatsApp in one tap, and get paid online, all in
 under a minute. The product targets a segment — African and
 emerging-market small businesses that run their customer relationships
@@ -115,7 +115,7 @@ Dockerfile provided) + Neon (database).
   spend/activity).
 - Recurring platform-subscription billing via Paystack/Flutterwave
   (payment _collection_ for invoices is built; recurring SaaS billing for
-  InvoiceTap's own plans is still admin-driven — see ROADMAP.md).
+  Sendnaro's own plans is still admin-driven — see ROADMAP.md).
 - Native mobile app reusing the existing Express API.
 - Accountant/agency multi-workspace tooling is scaffolded (the `AGENCY`
   plan, multi-workspace membership) but the differentiated UI for it is
@@ -178,7 +178,7 @@ suite yourself as part of due diligence; don't take either claim on
 faith.
 
 **What's the biggest technical risk?** Recurring platform-subscription
-billing (charging workspaces for their InvoiceTap plan on a recurring
+billing (charging workspaces for their Sendnaro plan on a recurring
 schedule) is not fully automated yet — see ROADMAP.md. Payment
 _collection_ on customer invoices (the core product value) is fully
 implemented and webhook-tested.

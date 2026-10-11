@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Button } from '@invoicetap/ui';
+import { Button } from '@sendnaro/ui';
 import { ResetPasswordForm } from './reset-password-form';
 
 export const metadata: Metadata = { title: 'Reset password' };

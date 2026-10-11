@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createRecurringInvoiceSchema, paginationQuerySchema } from '@invoicetap/shared';
+import { createRecurringInvoiceSchema, paginationQuerySchema } from '@sendnaro/shared';
 import { requireAuth } from '../../middleware/auth.js';
 import { requireWorkspace } from '../../middleware/workspace-context.js';
 import { requirePermission } from '../../middleware/authorize.js';

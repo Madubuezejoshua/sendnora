@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import type { ApiEnvironment } from '@invoicetap/database';
+import type { ApiEnvironment } from '@sendnaro/database';
 
 /**
  * API secrets: `sn_test_<43 chars>` (sandbox) or `sn_live_<43 chars>` (live), 256 bits of CSPRNG output.

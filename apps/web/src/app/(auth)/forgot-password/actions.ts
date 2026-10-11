@@ -1,9 +1,9 @@
 'use server';
 
 import { randomBytes } from 'node:crypto';
-import { prisma } from '@invoicetap/database';
-import { sha256Hex } from '@invoicetap/database/encryption';
-import { forgotPasswordSchema } from '@invoicetap/shared';
+import { prisma } from '@sendnaro/database';
+import { sha256Hex } from '@sendnaro/database/encryption';
+import { forgotPasswordSchema } from '@sendnaro/shared';
 import { getWebEnv } from '@/lib/env';
 import { sendAuthEmail, resetPasswordContent } from '@/lib/auth-email';
 
@@ -27,7 +27,7 @@ export async function forgotPasswordAction(input: { email: string }): Promise<{ 
   const env = getWebEnv();
   const resetUrl = `${env.NEXT_PUBLIC_APP_URL}/reset-password?token=${rawToken}`;
   const content = resetPasswordContent(user.name ?? user.email, resetUrl);
-  await sendAuthEmail(user.email, content.subject, content.html, content.text).catch(() => {});
+  await sendAuthEmail(user.email, content.subject, content.html, content.text).catch((err: Error) => console.error('Auth email was not sent:', err.message));
 
   return { ok: true };
 }

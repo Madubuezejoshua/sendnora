@@ -1,6 +1,6 @@
-import { buildWhatsAppClickToChatUrl, normalizePhoneNumber } from '@invoicetap/shared';
-import { parseApiEnv } from '@invoicetap/config/env';
-import { prisma } from '@invoicetap/database';
+import { buildWhatsAppClickToChatUrl, normalizePhoneNumber } from '@sendnaro/shared';
+import { parseApiEnv } from '@sendnaro/config/env';
+import { prisma } from '@sendnaro/database';
 import {
   sendWhatsAppDocumentMessage,
   isMetaCloudApiConfigured,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import request from 'supertest';
-import { signApiToken } from '@invoicetap/shared/server/api-token';
+import { signApiToken } from '@sendnaro/shared/server/api-token';
 import {
   buildTestApp,
   createTestUser,

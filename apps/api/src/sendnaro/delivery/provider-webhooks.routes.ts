@@ -1,8 +1,8 @@
 import { Router, raw } from 'express';
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { prisma } from '@invoicetap/database';
-import { decryptSecret } from '@invoicetap/database/encryption';
-import { parseApiEnv } from '@invoicetap/config/env';
+import { prisma } from '@sendnaro/database';
+import { decryptSecret } from '@sendnaro/database/encryption';
+import { parseApiEnv } from '@sendnaro/config/env';
 import { logger } from '../../config/logger.js';
 import { webhookRateLimit } from '../../middleware/rate-limit.js';
 import { applyProviderReceipt, type ProviderReceipt } from './engine.js';

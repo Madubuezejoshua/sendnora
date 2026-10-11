@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
-import { prisma, type ApiEnvironment } from '@invoicetap/database';
-import { encryptSecret } from '@invoicetap/database/encryption';
-import { AppError, isSupportedCurrency } from '@invoicetap/shared';
-import { parseApiEnv } from '@invoicetap/config/env';
+import { prisma, type ApiEnvironment } from '@sendnaro/database';
+import { encryptSecret } from '@sendnaro/database/encryption';
+import { AppError, isSupportedCurrency } from '@sendnaro/shared';
+import { parseApiEnv } from '@sendnaro/config/env';
 import { requireAuth } from '../../middleware/auth.js';
 import { requireWorkspace } from '../../middleware/workspace-context.js';
 import { writeAuditLog } from '../../services/audit.service.js';

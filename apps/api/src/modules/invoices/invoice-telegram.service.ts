@@ -1,5 +1,5 @@
-import { parseApiEnv } from '@invoicetap/config/env';
-import { getCurrency } from '@invoicetap/shared';
+import { parseApiEnv } from '@sendnaro/config/env';
+import { getCurrency } from '@sendnaro/shared';
 import {
   createTelegramLink,
   sendTelegramToCustomer,

@@ -1,5 +1,5 @@
-import { prisma } from '@invoicetap/database';
-import { AppError, generateSecureId } from '@invoicetap/shared';
+import { prisma } from '@sendnaro/database';
+import { AppError, generateSecureId } from '@sendnaro/shared';
 import { logger } from '../../config/logger.js';
 import {
   resolvePaymentProvider,

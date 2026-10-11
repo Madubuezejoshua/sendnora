@@ -1,5 +1,5 @@
 import React from 'react';
-import { BRAND } from '@invoicetap/shared';
+import { BRAND } from '@sendnaro/shared';
 
 const styles = {
   body: {
@@ -58,7 +58,7 @@ export function EmailLayout({
           <div style={styles.footer}>
             {footerNote ?? (
               <p style={{ margin: 0 }}>
-                {BRAND.productName} · Need help? Contact us at {BRAND.supportEmail}
+                {BRAND.productName} · Questions? Visit {BRAND.domain}/contact
               </p>
             )}
           </div>

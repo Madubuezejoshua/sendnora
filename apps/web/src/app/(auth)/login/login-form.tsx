@@ -7,7 +7,7 @@ import { signIn } from 'next-auth/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Button, FormField, Input } from '@invoicetap/ui';
+import { Button, FormField, Input } from '@sendnaro/ui';
 
 const schema = z.object({
   email: z.string().trim().email('Enter a valid email'),
@@ -44,7 +44,7 @@ export function LoginForm() {
       return;
     }
 
-    router.push(searchParams.get('callbackUrl') || '/dashboard');
+    router.push(searchParams.get('callbackUrl') || '/console');
     router.refresh();
   };
 

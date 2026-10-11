@@ -1,4 +1,4 @@
-import { Badge, StatusBadge } from '@invoicetap/ui';
+import { Badge, StatusBadge } from '@sendnaro/ui';
 import { apiFetch } from '@/lib/api-client';
 
 interface AdminWorkspace {

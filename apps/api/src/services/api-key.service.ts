@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { prisma } from '@invoicetap/database';
-import { AppError, generateApiKey } from '@invoicetap/shared';
+import { prisma } from '@sendnaro/database';
+import { AppError, generateApiKey } from '@sendnaro/shared';
 
 function hashApiKey(key: string): string {
   return createHash('sha256').update(key).digest('hex');

@@ -1,12 +1,13 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { BRAND } from '@invoicetap/shared';
+import { BRAND } from '@sendnaro/shared';
 import { auth } from '@/auth';
 
 const ADMIN_LINKS = [
   { href: '/admin', label: 'Overview' },
+  { href: '/admin/billing', label: 'Billing' },
   { href: '/admin/users', label: 'Users' },
-  { href: '/admin/workspaces', label: 'Workspaces' },
+  { href: '/admin/workspaces', label: 'Businesses' },
   { href: '/admin/webhook-events', label: 'Webhook events' },
   { href: '/admin/support-tickets', label: 'Support tickets' },
 ];
@@ -14,7 +15,7 @@ const ADMIN_LINKS = [
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user) redirect('/login');
-  if (!session.user.isPlatformAdmin) redirect('/dashboard');
+  if (!session.user.isPlatformAdmin) redirect('/console');
 
   return (
     <div className="min-h-screen">
@@ -23,8 +24,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Link href="/admin" className="font-semibold">
             {BRAND.productName} Admin
           </Link>
-          <Link href="/dashboard" className="text-sm opacity-80 hover:opacity-100">
-            Back to app
+          <Link href="/console" className="text-sm opacity-80 hover:opacity-100">
+            Back to console
           </Link>
         </div>
         <nav className="mx-auto flex max-w-6xl gap-4 overflow-x-auto px-4 pb-3 text-sm sm:px-6">

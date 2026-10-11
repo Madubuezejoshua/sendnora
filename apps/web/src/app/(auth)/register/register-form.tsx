@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Button, FormField, Input } from '@invoicetap/ui';
+import { Button, FormField, Input } from '@sendnaro/ui';
 import { registerAction } from './actions';
 
 const schema = z.object({
@@ -64,7 +64,7 @@ export function RegisterForm() {
 
   return (
     <div>
-      <h1 className="text-lg font-semibold">Create your free account</h1>
+      <h1 className="text-lg font-semibold">Create your account</h1>
       <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
         <FormField label="Full name" htmlFor="name" required error={errors.name?.message}>
           <Input id="name" autoComplete="name" invalid={!!errors.name} {...register('name')} />

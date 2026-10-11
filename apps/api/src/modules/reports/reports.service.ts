@@ -1,4 +1,4 @@
-import { prisma } from '@invoicetap/database';
+import { prisma } from '@sendnaro/database';
 
 export interface ReportDateRange {
   from: Date;

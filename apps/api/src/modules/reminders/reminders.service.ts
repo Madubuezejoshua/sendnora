@@ -1,6 +1,6 @@
-import { prisma } from '@invoicetap/database';
-import { MAX_REMINDERS_PER_INVOICE, getCurrency } from '@invoicetap/shared';
-import { parseApiEnv } from '@invoicetap/config/env';
+import { prisma } from '@sendnaro/database';
+import { MAX_REMINDERS_PER_INVOICE, getCurrency } from '@sendnaro/shared';
+import { parseApiEnv } from '@sendnaro/config/env';
 import { logger } from '../../config/logger.js';
 import { sendTemplatedEmail, invoiceReminderTemplate } from '../../services/email/email.service.js';
 import { buildClickToChatLink } from '../../services/whatsapp/whatsapp.service.js';

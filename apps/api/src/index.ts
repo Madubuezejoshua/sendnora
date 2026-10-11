@@ -1,5 +1,5 @@
-import { parseApiEnv } from '@invoicetap/config/env';
-import { prisma } from '@invoicetap/database';
+import { parseApiEnv } from '@sendnaro/config/env';
+import { prisma } from '@sendnaro/database';
 import { createApp } from './app.js';
 import { startWorkerLoop } from './sendnaro/jobs.js';
 import { logger } from './config/logger.js';
@@ -8,7 +8,7 @@ const env = parseApiEnv();
 const app = createApp(env);
 
 const server = app.listen(env.API_PORT, () => {
-  logger.info(`InvoiceTap API listening on port ${env.API_PORT} (${env.NODE_ENV})`);
+  logger.info(`Sendnaro API listening on port ${env.API_PORT} (${env.NODE_ENV})`);
 });
 
 const stopWorker = env.WORKER_INLINE ? startWorkerLoop() : undefined;

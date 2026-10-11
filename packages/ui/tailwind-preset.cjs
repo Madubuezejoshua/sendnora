@@ -1,5 +1,5 @@
 /**
- * Shared Tailwind preset — the single source of truth for InvoiceTap's
+ * Shared Tailwind preset — the single source of truth for Sendnaro's
  * design tokens. apps/web's tailwind.config.ts extends this preset. Colors
  * are expressed as CSS variables (set in src/styles.css) so light/dark
  * theming works via the `.dark` class without duplicating the palette.

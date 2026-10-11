@@ -8,13 +8,13 @@ import {
   updateBusinessProfileSchema,
   updateMemberRoleSchema,
   updateWorkspaceSettingsSchema,
-} from '@invoicetap/shared';
+} from '@sendnaro/shared';
 import { requireAuth } from '../../middleware/auth.js';
 import { requireWorkspace } from '../../middleware/workspace-context.js';
 import { requirePermission } from '../../middleware/authorize.js';
 import { validateBody } from '../../middleware/validate.js';
 import { writeAuditLog } from '../../services/audit.service.js';
-import { prisma } from '@invoicetap/database';
+import { prisma } from '@sendnaro/database';
 import * as workspacesService from './workspaces.service.js';
 
 export const workspacesRouter = Router();

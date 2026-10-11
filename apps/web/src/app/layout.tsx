@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { BRAND } from '@invoicetap/shared';
+import { BRAND } from '@sendnaro/shared';
 import { Providers } from './providers';
 import './globals.css';
 
@@ -11,23 +11,17 @@ export const metadata: Metadata = {
   },
   description: BRAND.description,
   applicationName: BRAND.productName,
-  icons: {
-    icon: '/favicon.ico',
-    apple: '/brand/icon.svg',
-  },
   manifest: '/manifest.webmanifest',
   openGraph: {
     type: 'website',
     siteName: BRAND.productName,
     title: `${BRAND.productName} — ${BRAND.tagline}`,
     description: BRAND.description,
-    images: ['/og-image.png'],
   },
   twitter: {
     card: 'summary_large_image',
     title: `${BRAND.productName} — ${BRAND.tagline}`,
     description: BRAND.description,
-    images: ['/og-image.png'],
   },
   robots: { index: true, follow: true },
 };

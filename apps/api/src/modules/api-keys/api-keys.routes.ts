@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createApiKeySchema } from '@invoicetap/shared';
+import { createApiKeySchema } from '@sendnaro/shared';
 import { requireAuth } from '../../middleware/auth.js';
 import { requireWorkspace } from '../../middleware/workspace-context.js';
 import { requirePermission } from '../../middleware/authorize.js';

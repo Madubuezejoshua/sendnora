@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
-import { prisma } from '@invoicetap/database';
+import { prisma } from '@sendnaro/database';
 import { app, auth, drain, invoiceBody, makeBusiness, makeKey } from './sn-helpers.js';
 
 const SECRET = 'tg-secret-for-tests';

@@ -4,8 +4,8 @@
  * disposable database with migrations applied. See TESTING.md:
  *
  *   docker compose up -d
- *   npm run db:migrate:deploy --workspace=@invoicetap/database
- *   npm test --workspace=@invoicetap/api
+ *   npm run db:migrate:deploy --workspace=@sendnaro/database
+ *   npm test --workspace=@sendnaro/api
  *
  * We bypass Auth.js entirely here (it lives in apps/web) and mint API
  * tokens directly with signApiToken, exactly as apps/web would after
@@ -13,11 +13,11 @@
  * uses, just without a browser in the loop.
  */
 import { randomUUID } from 'node:crypto';
-import { signApiToken } from '@invoicetap/shared/server/api-token';
-import { prisma } from '@invoicetap/database';
-import { hashPassword } from '@invoicetap/database/password';
+import { signApiToken } from '@sendnaro/shared/server/api-token';
+import { prisma } from '@sendnaro/database';
+import { hashPassword } from '@sendnaro/database/password';
 import { createApp } from '../../src/app.js';
-import { parseApiEnv } from '@invoicetap/config/env';
+import { parseApiEnv } from '@sendnaro/config/env';
 
 export function getTestEnv() {
   return parseApiEnv();

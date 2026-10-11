@@ -1,4 +1,4 @@
-import type { PaginatedResult, PaginationQuery } from '@invoicetap/shared';
+import type { PaginatedResult, PaginationQuery } from '@sendnaro/shared';
 
 export function paginate<T>(
   items: T[],

@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import { AppError } from '@invoicetap/shared';
+import { AppError } from '@sendnaro/shared';
 
 /** Server-side role check for sensitive console actions (keys, channel secrets, webhooks, profile). */
 export function requireOwnerOrAdmin(req: Request, _res: Response, next: NextFunction): void {

@@ -1,9 +1,9 @@
 'use server';
 
-import { prisma } from '@invoicetap/database';
-import { hashPassword } from '@invoicetap/database/password';
-import { sha256Hex } from '@invoicetap/database/encryption';
-import { resetPasswordSchema } from '@invoicetap/shared';
+import { prisma } from '@sendnaro/database';
+import { hashPassword } from '@sendnaro/database/password';
+import { sha256Hex } from '@sendnaro/database/encryption';
+import { resetPasswordSchema } from '@sendnaro/shared';
 
 export interface ResetPasswordResult {
   ok: boolean;

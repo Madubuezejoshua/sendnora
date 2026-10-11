@@ -1,8 +1,9 @@
+import { getBillingSettings } from '../../sendnaro/entitlement.js';
 import { Router } from 'express';
 import { z } from 'zod';
-import { assertQuoteTransition } from '@invoicetap/shared';
-import { prisma } from '@invoicetap/database';
-import { parseApiEnv } from '@invoicetap/config/env';
+import { assertQuoteTransition } from '@sendnaro/shared';
+import { prisma } from '@sendnaro/database';
+import { parseApiEnv } from '@sendnaro/config/env';
 import { validateBody } from '../../middleware/validate.js';
 import { publicDocumentRateLimit } from '../../middleware/rate-limit.js';
 import * as invoicesService from '../invoices/invoices.service.js';
@@ -22,6 +23,21 @@ import {
  */
 export const publicRouter = Router();
 publicRouter.use('/public', publicDocumentRateLimit);
+
+/** Truthful platform access state for the marketing site (read from the authoritative server-side settings). */
+publicRouter.get('/public/platform', async (_req, res, next) => {
+  try {
+    const s = await getBillingSettings();
+    res.json({
+      data: {
+        billingRequired: s.billingRequired,
+        activationPrice: s.billingRequired && s.activationPriceMinor ? { amountMinor: s.activationPriceMinor, currency: s.activationCurrency } : null,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 publicRouter.get('/public/invoices/:token', async (req, res, next) => {
   try {

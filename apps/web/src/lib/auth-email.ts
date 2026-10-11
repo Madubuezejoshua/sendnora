@@ -1,6 +1,8 @@
 import 'server-only';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { Resend } from 'resend';
-import { BRAND } from '@invoicetap/shared';
+import { BRAND } from '@sendnaro/shared';
 
 /**
  * Lightweight, self-contained email sender for the handful of auth-flow
@@ -19,7 +21,7 @@ export async function sendAuthEmail(
   html: string,
   text: string,
 ): Promise<void> {
-  const provider = process.env.EMAIL_PROVIDER ?? 'dev';
+  const provider = process.env.EMAIL_PROVIDER ?? (process.env.NODE_ENV === 'production' ? '' : 'dev');
 
   if (provider === 'resend' && process.env.RESEND_API_KEY && process.env.EMAIL_FROM) {
     const resend = new Resend(process.env.RESEND_API_KEY);
@@ -36,8 +38,18 @@ export async function sendAuthEmail(
     return;
   }
 
-  // eslint-disable-next-line no-console
-  console.log(`\n[dev email] To: ${to}\nSubject: ${subject}\n\n${text}\n`);
+  // Never print verification/reset links into production logs, and never pretend an email was sent.
+  // The file sink below is opt-in: EMAIL_PROVIDER=dev (local development, tests).
+  if (process.env.NODE_ENV === 'production' && provider !== 'dev') {
+    throw new Error('EMAIL_PROVIDER=resend with RESEND_API_KEY and EMAIL_FROM is required to send email in production');
+  }
+
+  // Development / test email sink: capture the message as a file (apps/web/.dev-emails, gitignored)
+  // so tests and developers can read the real content and link.
+  const dir = path.resolve(process.cwd(), '.dev-emails');
+  await mkdir(dir, { recursive: true });
+  const safe = to.replace(/[^a-zA-Z0-9@._-]/g, '_');
+  await writeFile(path.join(dir, `${Date.now()}-${safe}.txt`), `To: ${to}\nSubject: ${subject}\n\n${text}\n`, 'utf8');
 }
 
 function wrap(bodyHtml: string): string {
@@ -68,7 +80,7 @@ export function welcomeContent(name: string, appUrl: string) {
   return {
     subject: `Welcome to ${BRAND.productName}`,
     html: wrap(
-      `<h1 style="font-size:20px;margin:0 0 16px">Welcome, ${name}!</h1><p style="color:#334155;font-size:14px">${BRAND.tagline}</p><a href="${appUrl}" style="display:inline-block;background:${BRAND.colors.primary};color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600">Go to your dashboard</a>`,
+      `<h1 style="font-size:20px;margin:0 0 16px">Welcome, ${name}!</h1><p style="color:#334155;font-size:14px">${BRAND.tagline}</p><a href="${appUrl}" style="display:inline-block;background:${BRAND.colors.primary};color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600">Open the console</a>`,
     ),
     text: `Welcome to ${BRAND.productName}. Get started: ${appUrl}`,
   };

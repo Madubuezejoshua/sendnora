@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createHmac } from 'node:crypto';
-import { prisma } from '@invoicetap/database';
-import { encryptSecret } from '@invoicetap/database/encryption';
+import { prisma } from '@sendnaro/database';
+import { encryptSecret } from '@sendnaro/database/encryption';
 import { app, auth, addWebhookEndpoint, drain, invoiceBody, makeBusiness, makeKey, startReceiver } from './sn-helpers.js';
 import { applyProviderReceipt, deliveryPolicy, processDelivery } from '../../src/sendnaro/delivery/engine.js';
 import { claimBatch, drainOutbox } from '../../src/sendnaro/outbox.js';
@@ -209,6 +209,31 @@ describe('delivery reliability (sandbox scenarios)', () => {
     expect(hs.status).toBe(200);
     expect(hs.text).toBe('abc123');
     expect((await request(app()).get(`/api/v1/webhooks/whatsapp/${a.conn.id}`).query({ 'hub.mode': 'subscribe', 'hub.verify_token': 'nope', 'hub.challenge': 'x' })).status).toBe(403);
+  });
+});
+
+describe('sandbox process-queue helper', () => {
+  it('is tenant scoped, sandbox only, and can fast-forward delayed retries', async () => {
+    deliveryPolicy.retryBaseMs = 60_000; // a retry would normally wait about a minute
+    const a = await sandbox();
+    const b = await sandbox();
+    const idA = await notify(a.key, 'temporary_failure');
+    const idB = await notify(b.key, 'success');
+
+    const run = (key: string, body: object = {}) => request(app()).post('/api/v1/sandbox/process-queue').set(auth(key)).send(body);
+    const first = await run(a.key);
+    expect(first.status).toBe(200);
+    expect((await row(idA)).status).toBe('RETRYING'); // retry is scheduled in the future
+    expect((await row(idB)).status).toBe('QUEUED'); // another business's job was NOT touched
+
+    await run(a.key, { fast_forward: true });
+    expect((await row(idA)).status).toBe('SANDBOX_SIMULATED');
+    expect((await row(idB)).status).toBe('QUEUED');
+
+    const live = await makeKey(a.workspace.id, a.user.id, 'LIVE');
+    const denied = await run(live.key);
+    expect(denied.status).toBe(403);
+    expect(denied.body.error.code).toBe('sandbox_only');
   });
 });
 

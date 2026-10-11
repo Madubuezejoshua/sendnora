@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { PLAN_CODES, paginationQuerySchema } from '@invoicetap/shared';
+import { PLAN_CODES, paginationQuerySchema } from '@sendnaro/shared';
 import { requireAuth } from '../../middleware/auth.js';
 import { requirePlatformAdmin } from '../../middleware/authorize.js';
 import { validateBody, validateQuery } from '../../middleware/validate.js';

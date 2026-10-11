@@ -1,4 +1,4 @@
-import { prisma } from '@invoicetap/database';
+import { prisma } from '@sendnaro/database';
 import {
   AppError,
   DEFAULT_PLAN,
@@ -7,7 +7,7 @@ import {
   isWithinInvoiceQuota,
   isWithinTeamMemberQuota,
   type PlanCode,
-} from '@invoicetap/shared';
+} from '@sendnaro/shared';
 
 /**
  * Resolves the workspace's effective plan. A workspace without a

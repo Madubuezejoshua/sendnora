@@ -1,7 +1,7 @@
-import { prisma } from '@invoicetap/database';
-import { parseApiEnv } from '@invoicetap/config/env';
+import { prisma } from '@sendnaro/database';
+import { parseApiEnv } from '@sendnaro/config/env';
 import { paginate, toSkipTake } from '../../services/pagination.js';
-import type { PaginationQuery } from '@invoicetap/shared';
+import type { PaginationQuery } from '@sendnaro/shared';
 
 export async function getPlatformStats() {
   const [userCount, workspaceCount, invoiceCount, activeSubscriptions, demoWorkspaces] =

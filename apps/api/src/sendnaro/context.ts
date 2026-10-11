@@ -1,4 +1,4 @@
-import type { ApiEnvironment } from '@invoicetap/database';
+import type { ApiEnvironment } from '@sendnaro/database';
 
 export interface SnContext {
   workspaceId: string;

@@ -1,6 +1,6 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { parseApiEnv } from '@invoicetap/config/env';
+import { parseApiEnv } from '@sendnaro/config/env';
 import type { PutObjectParams, StorageProviderAdapter } from './provider.interface.js';
 
 /**

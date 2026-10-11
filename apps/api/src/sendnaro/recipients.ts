@@ -4,9 +4,9 @@ import {
   type Delivery,
   type DeliveryKind,
   type Recipient,
-} from '@invoicetap/database';
-import { AppError, normalizePhoneNumber } from '@invoicetap/shared';
-import { parseApiEnv } from '@invoicetap/config/env';
+} from '@sendnaro/database';
+import { AppError, normalizePhoneNumber } from '@sendnaro/shared';
+import { parseApiEnv } from '@sendnaro/config/env';
 import type { SnContext } from './context.js';
 import { enqueue } from './outbox.js';
 import { publicId } from './ids.js';

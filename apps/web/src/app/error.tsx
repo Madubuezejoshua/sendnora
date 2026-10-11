@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { Button } from '@invoicetap/ui';
+import { Button } from '@sendnaro/ui';
 
 export default function ErrorPage({
   error,

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Button } from '@invoicetap/ui';
+import { Button } from '@sendnaro/ui';
 
 export default function NotFound() {
   return (

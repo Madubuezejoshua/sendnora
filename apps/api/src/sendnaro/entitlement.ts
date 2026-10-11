@@ -1,5 +1,5 @@
-import { prisma, type ApiEnvironment } from '@invoicetap/database';
-import { AppError } from '@invoicetap/shared';
+import { prisma, type ApiEnvironment } from '@sendnaro/database';
+import { AppError } from '@sendnaro/shared';
 
 /**
  * Billing settings live in ApplicationSetting (authoritative, server-side). `billing_required`

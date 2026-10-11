@@ -1,8 +1,8 @@
 import { fileTypeFromBuffer } from 'file-type';
-import { generateSecureId } from '@invoicetap/shared';
-import { parseApiEnv } from '@invoicetap/config/env';
-import { prisma } from '@invoicetap/database';
-import type { FileAssetKind } from '@invoicetap/database';
+import { generateSecureId } from '@sendnaro/shared';
+import { parseApiEnv } from '@sendnaro/config/env';
+import { prisma } from '@sendnaro/database';
+import type { FileAssetKind } from '@sendnaro/database';
 import { B2StorageProvider } from './b2.provider.js';
 import { LocalStorageProvider } from './local.provider.js';
 import type { StorageProviderAdapter } from './provider.interface.js';

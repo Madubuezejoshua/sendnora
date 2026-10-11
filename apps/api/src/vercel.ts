@@ -1,4 +1,4 @@
-import { parseApiEnv } from '@invoicetap/config/env';
+import { parseApiEnv } from '@sendnaro/config/env';
 import { createApp } from './app.js';
 import './sendnaro/jobs.js'; // registers outbox handlers for /cron/outbox
 

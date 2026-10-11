@@ -1,5 +1,5 @@
-import { prisma } from '@invoicetap/database';
-import { verifyPassword } from '@invoicetap/database/password';
+import { prisma } from '@sendnaro/database';
+import { verifyPassword } from '@sendnaro/database/password';
 import {
   AppError,
   generatePublicToken,
@@ -7,7 +7,7 @@ import {
   type CreateWorkspaceInput,
   type InviteMemberInput,
   MEMBER_MANAGEMENT_ROLES,
-} from '@invoicetap/shared';
+} from '@sendnaro/shared';
 import { assertCanAddTeamMember } from '../../services/billing.service.js';
 
 async function generateUniqueSlug(base: string): Promise<string> {

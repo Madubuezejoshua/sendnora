@@ -1,5 +1,5 @@
-import { prisma } from '@invoicetap/database';
-import { AppError, type PaginationQuery } from '@invoicetap/shared';
+import { prisma } from '@sendnaro/database';
+import { AppError, type PaginationQuery } from '@sendnaro/shared';
 import { paginate, toSkipTake } from '../../services/pagination.js';
 
 export async function listReceipts(workspaceId: string, query: PaginationQuery) {

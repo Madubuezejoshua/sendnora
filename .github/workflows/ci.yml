@@ -8,8 +8,8 @@ on:
 
 env:
   NODE_ENV: test
-  DATABASE_URL: postgresql://invoicetap:invoicetap@localhost:5432/invoicetap?schema=public
-  DIRECT_DATABASE_URL: postgresql://invoicetap:invoicetap@localhost:5432/invoicetap?schema=public
+  DATABASE_URL: postgresql://sendnaro:sendnaro@localhost:5432/sendnaro?schema=public
+  DIRECT_DATABASE_URL: postgresql://sendnaro:sendnaro@localhost:5432/sendnaro?schema=public
   AUTH_SECRET: ci-only-secret-value-not-for-real-use-000000
   API_TOKEN_SECRET: ci-only-secret-value-not-for-real-use-000000
   APP_ENCRYPTION_KEY: ci-only-secret-value-not-for-real-use-000000
@@ -26,12 +26,12 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: invoicetap
-          POSTGRES_PASSWORD: invoicetap
-          POSTGRES_DB: invoicetap
+          POSTGRES_USER: sendnaro
+          POSTGRES_PASSWORD: sendnaro
+          POSTGRES_DB: sendnaro
         ports: ['5432:5432']
         options: >-
-          --health-cmd "pg_isready -U invoicetap"
+          --health-cmd "pg_isready -U sendnaro"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -53,13 +53,13 @@ jobs:
         run: npm run lint
 
       - name: Generate Prisma client
-        run: npm run db:generate --workspace=@invoicetap/database
+        run: npm run db:generate --workspace=@sendnaro/database
 
-      - name: Build @invoicetap/database
-        run: npm run build --workspace=@invoicetap/database
+      - name: Build @sendnaro/database
+        run: npm run build --workspace=@sendnaro/database
 
       - name: Apply migrations
-        run: npm run db:migrate:deploy --workspace=@invoicetap/database
+        run: npm run db:migrate:deploy --workspace=@sendnaro/database
 
       - name: Typecheck
         run: npm run typecheck
@@ -80,12 +80,12 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: invoicetap
-          POSTGRES_PASSWORD: invoicetap
-          POSTGRES_DB: invoicetap
+          POSTGRES_USER: sendnaro
+          POSTGRES_PASSWORD: sendnaro
+          POSTGRES_DB: sendnaro
         ports: ['5432:5432']
         options: >-
-          --health-cmd "pg_isready -U invoicetap"
+          --health-cmd "pg_isready -U sendnaro"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -102,9 +102,9 @@ jobs:
 
       - name: Generate Prisma client and migrate
         run: |
-          npm run db:generate --workspace=@invoicetap/database
-          npm run db:migrate:deploy --workspace=@invoicetap/database
-          npm run db:seed --workspace=@invoicetap/database
+          npm run db:generate --workspace=@sendnaro/database
+          npm run db:migrate:deploy --workspace=@sendnaro/database
+          npm run db:seed --workspace=@sendnaro/database
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
@@ -113,7 +113,7 @@ jobs:
         run: npm run build
 
       - name: Run Playwright E2E suite
-        run: npm run test:e2e --workspace=@invoicetap/web
+        run: npm run test:e2e --workspace=@sendnaro/web
 
       - uses: actions/upload-artifact@v4
         if: always()

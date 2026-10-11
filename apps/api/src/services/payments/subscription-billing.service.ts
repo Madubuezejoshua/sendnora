@@ -1,5 +1,5 @@
-import { prisma, type BillingInterval } from '@invoicetap/database';
-import { PLANS, type PlanCode } from '@invoicetap/shared';
+import { prisma, type BillingInterval } from '@sendnaro/database';
+import { PLANS, type PlanCode } from '@sendnaro/shared';
 import { logger } from '../../config/logger.js';
 
 function computePeriodEnd(interval: BillingInterval, from: Date): Date {
@@ -11,7 +11,7 @@ function computePeriodEnd(interval: BillingInterval, from: Date): Date {
 
 /**
  * Handles Paystack subscription-lifecycle webhook events for PLATFORM
- * billing (a workspace paying for its own InvoiceTap plan) — a distinct
+ * billing (a workspace paying for its own Sendnaro plan) — a distinct
  * concern from payments.service.ts, which handles CUSTOMER invoice
  * payments. Both domains share the same `charge.success` event type, so
  * this differentiates by checking for `planCode`/`interval` in the

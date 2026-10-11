@@ -1,5 +1,5 @@
-import { prisma, type OtpChallenge } from '@invoicetap/database';
-import { AppError } from '@invoicetap/shared';
+import { prisma, type OtpChallenge } from '@sendnaro/database';
+import { AppError } from '@sendnaro/shared';
 import type { SnContext } from '../context.js';
 import { assertCanSend } from '../entitlement.js';
 import { parsePublicId, publicId } from '../ids.js';

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { prisma } from '@invoicetap/database';
+import { prisma } from '@sendnaro/database';
 import { setupWorkspaceContext } from './setup.js';
 
 /**
@@ -46,7 +46,7 @@ describe('payment webhook idempotency', () => {
 
     const { computeAndShapeLineItems } = await import('../../src/services/line-items.service.js');
     const { allocateDocumentNumber } = await import('../../src/services/numbering.service.js');
-    const { generatePublicToken } = await import('@invoicetap/shared');
+    const { generatePublicToken } = await import('@sendnaro/shared');
 
     const shaped = computeAndShapeLineItems({
       currency: 'NGN',

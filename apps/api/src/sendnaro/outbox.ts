@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { prisma, Prisma, type ApiEnvironment } from '@invoicetap/database';
+import { prisma, Prisma, type ApiEnvironment } from '@sendnaro/database';
 import { logger } from '../config/logger.js';
 
 /**
@@ -49,10 +49,16 @@ interface ClaimedRow {
   environment: ApiEnvironment | null;
 }
 
-export async function claimBatch(workerId: string, limit: number, workspaceId?: string): Promise<ClaimedRow[]> {
+export async function claimBatch(
+  workerId: string,
+  limit: number,
+  workspaceId?: string,
+  environment?: ApiEnvironment,
+): Promise<ClaimedRow[]> {
   const now = new Date();
   const lockExpiry = new Date(now.getTime() - LOCK_TIMEOUT_SECONDS * 1000);
   const scope = workspaceId ? Prisma.sql`AND "workspaceId" = ${workspaceId}` : Prisma.empty;
+  const envScope = environment ? Prisma.sql`AND "environment" = ${environment}::"ApiEnvironment"` : Prisma.empty;
   return prisma.$queryRaw<ClaimedRow[]>`
     UPDATE "OutboxEvent"
        SET "status" = 'PROCESSING', "lockedAt" = (${now}::timestamptz AT TIME ZONE 'UTC'), "lockedBy" = ${workerId},
@@ -61,7 +67,7 @@ export async function claimBatch(workerId: string, limit: number, workspaceId?: 
        SELECT "id" FROM "OutboxEvent"
         WHERE (("status" = 'PENDING' AND "runAt" <= (${now}::timestamptz AT TIME ZONE 'UTC'))
            OR ("status" = 'PROCESSING' AND "lockedAt" < (${lockExpiry}::timestamptz AT TIME ZONE 'UTC')))
-           ${scope}
+           ${scope} ${envScope}
         ORDER BY "runAt"
         LIMIT ${limit}
         FOR UPDATE SKIP LOCKED)
@@ -95,14 +101,14 @@ export function backoffMs(attempt: number, baseMs = 2000, capMs = 15 * 60_000): 
 }
 
 export async function drainOutbox(
-  opts: { limit?: number; workerId?: string; maxRounds?: number; workspaceId?: string } = {},
+  opts: { limit?: number; workerId?: string; maxRounds?: number; workspaceId?: string; environment?: ApiEnvironment } = {},
 ): Promise<{ processed: number }> {
   const workerId = opts.workerId ?? `w_${randomUUID().slice(0, 8)}`;
   const limit = opts.limit ?? 25;
   let processed = 0;
 
   for (let round = 0; round < (opts.maxRounds ?? 20); round += 1) {
-    const jobs = await claimBatch(workerId, limit, opts.workspaceId);
+    const jobs = await claimBatch(workerId, limit, opts.workspaceId, opts.environment);
     if (jobs.length === 0) break;
 
     await Promise.all(

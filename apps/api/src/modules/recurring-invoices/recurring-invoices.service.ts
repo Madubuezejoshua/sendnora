@@ -1,6 +1,6 @@
-import { prisma } from '@invoicetap/database';
-import { AppError, computeNextRunAt, type PaginationQuery } from '@invoicetap/shared';
-import type { CreateRecurringInvoiceInput } from '@invoicetap/shared';
+import { prisma } from '@sendnaro/database';
+import { AppError, computeNextRunAt, type PaginationQuery } from '@sendnaro/shared';
+import type { CreateRecurringInvoiceInput } from '@sendnaro/shared';
 import { paginate, toSkipTake } from '../../services/pagination.js';
 import { createInvoice, issueInvoice } from '../invoices/invoices.service.js';
 import { logger } from '../../config/logger.js';

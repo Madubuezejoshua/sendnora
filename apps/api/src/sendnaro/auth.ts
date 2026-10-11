@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
-import { prisma } from '@invoicetap/database';
-import { AppError } from '@invoicetap/shared';
+import { prisma } from '@sendnaro/database';
+import { AppError } from '@sendnaro/shared';
 import { enforce, RateLimitedError } from './limits.js';
 import { hashKey, parseBearerKey, type ApiScope } from './keys.js';
 import './context.js';

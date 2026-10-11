@@ -1,6 +1,6 @@
 import { Router, raw } from 'express';
-import { prisma } from '@invoicetap/database';
-import { parseApiEnv } from '@invoicetap/config/env';
+import { prisma } from '@sendnaro/database';
+import { parseApiEnv } from '@sendnaro/config/env';
 import { webhookRateLimit } from '../../middleware/rate-limit.js';
 import { logger } from '../../config/logger.js';
 import {

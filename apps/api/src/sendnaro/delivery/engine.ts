@@ -1,9 +1,9 @@
-import { prisma, Prisma, type Delivery, type DeliveryStatus } from '@invoicetap/database';
-import { AppError } from '@invoicetap/shared';
+import { prisma, Prisma, type Delivery, type DeliveryStatus } from '@sendnaro/database';
+import { AppError } from '@sendnaro/shared';
 import { logger } from '../../config/logger.js';
 import { getStorageProvider } from '../../services/storage/storage.service.js';
 import { assertCanSend } from '../entitlement.js';
-import { backoffMs, enqueue, registerJob, RetryLater } from '../outbox.js';
+import { backoffMs, enqueue, registerJob } from '../outbox.js';
 import { publicId } from '../ids.js';
 import { computeOtpCode } from '../otp/code.js';
 import { emitWebhookEvent, type WebhookEventType } from '../webhooks/dispatch.js';

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BRAND } from '@invoicetap/shared';
+import { BRAND } from '@sendnaro/shared';
 import { EmailButton, EmailLayout, emailStyles as s } from './layout.js';
 
 export interface EmailTemplateResult {

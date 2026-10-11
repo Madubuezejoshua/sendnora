@@ -1,70 +1,36 @@
 import Link from 'next/link';
-import { BRAND } from '@invoicetap/shared';
+import { BRAND } from '@sendnaro/shared';
+import { Wordmark } from '@/components/brand/wordmark';
 
-const COLUMNS: { title: string; links: { href: string; label: string }[] }[] = [
-  {
-    title: 'Product',
-    links: [
-      { href: '/features', label: 'Features' },
-      { href: '/pricing', label: 'Pricing' },
-      { href: '/templates', label: 'Templates' },
-      { href: '/security', label: 'Security' },
-    ],
-  },
-  {
-    title: 'Company',
-    links: [
-      { href: '/about', label: 'About' },
-      { href: '/contact', label: 'Contact' },
-      { href: '/faq', label: 'FAQ' },
-    ],
-  },
-  {
-    title: 'Legal',
-    links: [
-      { href: '/privacy', label: 'Privacy Policy' },
-      { href: '/terms', label: 'Terms of Service' },
-      { href: '/refund-policy', label: 'Refund Policy' },
-      { href: '/cookie-policy', label: 'Cookie Policy' },
-      { href: '/acceptable-use', label: 'Acceptable Use' },
-    ],
-  },
+const LINKS = [
+  { href: '/docs', label: 'API docs' },
+  { href: '/pricing', label: 'Pricing' },
+  { href: '/contact', label: 'Support' },
+  { href: '/privacy', label: 'Privacy' },
+  { href: '/terms', label: 'Terms' },
 ];
 
 export function MarketingFooter() {
   return (
-    <footer className="border-border bg-muted/30 border-t">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+    <footer className="border-border border-t">
+      <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:px-6 md:flex-row md:items-center md:justify-between">
         <div>
-          <Link href="/" className="flex items-center gap-2 font-semibold">
-            <span className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-md text-sm font-bold">
-              {BRAND.shortName[0]}
-            </span>
-            <span>{BRAND.productName}</span>
-          </Link>
-          <p className="text-muted-foreground mt-3 max-w-xs text-sm">{BRAND.tagline}</p>
+          <Wordmark />
+          <p className="text-muted-foreground mt-2 max-w-xs text-sm">{BRAND.tagline}</p>
         </div>
-
-        {COLUMNS.map((col) => (
-          <div key={col.title}>
-            <h3 className="text-sm font-semibold">{col.title}</h3>
-            <ul className="mt-3 space-y-2">
-              {col.links.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-muted-foreground hover:text-foreground text-sm"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+        <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+          {LINKS.map((l) => (
+            <Link key={l.href} href={l.href} className="text-muted-foreground hover:text-foreground">
+              {l.label}
+            </Link>
+          ))}
+        </nav>
       </div>
-      <div className="border-border text-muted-foreground border-t px-4 py-6 text-center text-xs sm:px-6">
-        © {new Date().getFullYear()} {BRAND.productName}. All rights reserved.
+      <div className="border-border border-t">
+        <p className="text-muted-foreground mx-auto max-w-6xl px-4 py-4 text-xs sm:px-6">
+          &copy; {new Date().getFullYear()} {BRAND.productName}. WhatsApp is a trademark of Meta Platforms, Inc.; Telegram is a trademark of
+          Telegram FZ-LLC. {BRAND.productName} is not affiliated with or endorsed by either company.
+        </p>
       </div>
     </footer>
   );

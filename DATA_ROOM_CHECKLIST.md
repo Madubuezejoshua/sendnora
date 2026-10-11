@@ -17,7 +17,7 @@ to fill in as the business matures, not as a claim that it's all done.
 
 ## Domain
 
-- [ ] Not yet registered. `invoicetap.app` used as a placeholder brand
+- [ ] Not yet registered. `sendnaro.com` used as a placeholder brand
       domain throughout the codebase (`packages/shared/src/branding.ts`)
       — update it there before registering/launching.
 
@@ -76,7 +76,7 @@ to fill in as the business matures, not as a claim that it's all done.
 
 ## Intellectual property
 
-- [ ] "InvoiceTap" is a working name, not a registered trademark. Check
+- [ ] "Sendnaro" is a working name, not a registered trademark. Check
       availability before committing to it as a permanent brand — see
       HANDOVER.md's rebrand checklist for how cheaply the codebase can be
       renamed if it's not available.

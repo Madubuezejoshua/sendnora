@@ -1,4 +1,4 @@
-import { parseApiEnv } from '@invoicetap/config/env';
+import { parseApiEnv } from '@sendnaro/config/env';
 import type { ChannelProvider, ProviderOutcome, SendRequest } from './provider.js';
 
 /**

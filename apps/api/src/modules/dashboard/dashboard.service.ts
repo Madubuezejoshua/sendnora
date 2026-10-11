@@ -1,5 +1,5 @@
-import { prisma } from '@invoicetap/database';
-import { OPEN_INVOICE_STATUSES } from '@invoicetap/shared';
+import { prisma } from '@sendnaro/database';
+import { OPEN_INVOICE_STATUSES } from '@sendnaro/shared';
 
 /**
  * All amounts are grouped by currency rather than summed together — this
