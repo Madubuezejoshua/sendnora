@@ -8,6 +8,14 @@ export const standardRateLimit = rateLimit({
   legacyHeaders: false,
 });
 
+/** Coarse per-IP backstop for the public API (per-key limits are enforced from Postgres in sendnaro/auth.ts). */
+export const v1IpRateLimit = rateLimit({
+  windowMs: 60_000,
+  limit: 3000,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 /** Public, unauthenticated document view endpoints — more permissive but still bounded. */
 export const publicDocumentRateLimit = rateLimit({
   windowMs: 60_000,

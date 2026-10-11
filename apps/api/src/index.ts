@@ -1,6 +1,7 @@
 import { parseApiEnv } from '@invoicetap/config/env';
 import { prisma } from '@invoicetap/database';
 import { createApp } from './app.js';
+import { startWorkerLoop } from './sendnaro/jobs.js';
 import { logger } from './config/logger.js';
 
 const env = parseApiEnv();
@@ -10,8 +11,12 @@ const server = app.listen(env.API_PORT, () => {
   logger.info(`InvoiceTap API listening on port ${env.API_PORT} (${env.NODE_ENV})`);
 });
 
+const stopWorker = env.WORKER_INLINE ? startWorkerLoop() : undefined;
+if (stopWorker) logger.info('Outbox worker loop running in-process');
+
 async function shutdown(signal: string): Promise<void> {
   logger.info(`Received ${signal}, shutting down gracefully...`);
+  stopWorker?.();
   server.close(async (err) => {
     if (err) {
       logger.error({ err }, 'Error during server close');

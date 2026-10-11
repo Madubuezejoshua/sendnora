@@ -49,4 +49,10 @@ export interface PdfDocumentData {
   verificationUrl?: string;
 
   watermarkText?: string;
+  /** Overrides the faint default so sandbox documents are unmistakable. */
+  watermarkColor?: string;
+  /** Free-text business footer (kept from the issue-time snapshot). */
+  footerText?: string;
+  /** Small attribution line, e.g. 'Delivered with Sendnaro'. */
+  poweredByText?: string;
 }

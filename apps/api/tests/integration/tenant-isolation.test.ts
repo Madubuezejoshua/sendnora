@@ -15,14 +15,14 @@ describe('tenant isolation', () => {
     const workspaceB = await setupWorkspaceContext();
 
     const createRes = await request(app)
-      .post('/api/v1/customers')
+      .post('/api/legacy/v1/customers')
       .set('Authorization', `Bearer ${workspaceB.token}`)
       .send({ type: 'INDIVIDUAL', name: 'Workspace B Customer' });
     expect(createRes.status).toBe(201);
     const customerId = createRes.body.data.id;
 
     const readRes = await request(app)
-      .get(`/api/v1/customers/${customerId}`)
+      .get(`/api/legacy/v1/customers/${customerId}`)
       .set('Authorization', `Bearer ${workspaceA.token}`);
     expect(readRes.status).toBe(404);
   });
@@ -33,13 +33,13 @@ describe('tenant isolation', () => {
     const workspaceB = await setupWorkspaceContext();
 
     const createRes = await request(app)
-      .post('/api/v1/customers')
+      .post('/api/legacy/v1/customers')
       .set('Authorization', `Bearer ${workspaceB.token}`)
       .send({ type: 'INDIVIDUAL', name: 'Workspace B Customer 2' });
     const customerId = createRes.body.data.id;
 
     const updateRes = await request(app)
-      .patch(`/api/v1/customers/${customerId}`)
+      .patch(`/api/legacy/v1/customers/${customerId}`)
       .set('Authorization', `Bearer ${workspaceA.token}`)
       .send({ name: 'Hijacked name' });
     expect(updateRes.status).toBe(404);
@@ -51,12 +51,12 @@ describe('tenant isolation', () => {
     const workspaceB = await setupWorkspaceContext();
 
     await request(app)
-      .post('/api/v1/customers')
+      .post('/api/legacy/v1/customers')
       .set('Authorization', `Bearer ${workspaceB.token}`)
       .send({ type: 'INDIVIDUAL', name: 'B Only Customer' });
 
     const listRes = await request(app)
-      .get('/api/v1/customers')
+      .get('/api/legacy/v1/customers')
       .set('Authorization', `Bearer ${workspaceA.token}`);
     expect(listRes.status).toBe(200);
     expect(listRes.body.items.every((c: { name: string }) => c.name !== 'B Only Customer')).toBe(
@@ -70,7 +70,7 @@ describe('tenant isolation', () => {
     const tokenWithoutWorkspace = await mintToken(user.id, undefined);
 
     const res = await request(app)
-      .get('/api/v1/customers')
+      .get('/api/legacy/v1/customers')
       .set('Authorization', `Bearer ${tokenWithoutWorkspace}`);
     expect(res.status).toBe(403);
   });

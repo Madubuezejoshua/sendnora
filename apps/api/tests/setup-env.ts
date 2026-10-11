@@ -9,3 +9,7 @@ try {
 } catch {
   // No .env file present — assume the environment already has the required variables (e.g. CI).
 }
+
+// Tests may use a local HTTP receiver for sandbox webhook endpoints (never allowed in production).
+process.env.ALLOW_LOCAL_WEBHOOK_TARGETS = 'true';
+process.env.NODE_ENV = process.env.NODE_ENV === 'production' ? 'test' : (process.env.NODE_ENV ?? 'test');

@@ -195,6 +195,19 @@ model Workspace {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
+  suspendedAt     DateTime?
+  suspendedReason String?
+
+  channelConnections       ChannelConnection[]
+  recipients               Recipient[]
+  issuedDocuments          IssuedDocument[]
+  otpChallenges            OtpChallenge[]
+  deliveries               Delivery[]
+  merchantWebhookEndpoints MerchantWebhookEndpoint[]
+  activationQuotes         ActivationQuote[]
+  activationPayments       ActivationPayment[]
+  entitlement              Entitlement?
+
   owner                  User                    @relation("WorkspaceOwner", fields: [ownerId], references: [id])
   members                WorkspaceMember[]
   invitations            WorkspaceInvitation[]
@@ -291,16 +304,20 @@ enum InvitationStatus {
 }
 
 model BusinessProfile {
-  id              String  @id @default(cuid())
-  workspaceId     String  @unique
-  legalName       String?
-  displayName     String
-  contactEmail    String?
-  contactPhone    String?
-  website         String?
-  taxIdNumber     String?
-  logoFileAssetId String?
-  addressId       String? @unique
+  id                 String   @id @default(cuid())
+  workspaceId        String   @unique
+  legalName          String?
+  displayName        String
+  contactEmail       String?
+  contactPhone       String?
+  website            String?
+  taxIdNumber        String?
+  logoFileAssetId    String?
+  addressId          String?  @unique
+  addressText        String?
+  invoiceFooter      String?
+  // Hostnames merchants may put in notification links/messages (exact or subdomain match).
+  allowedLinkOrigins String[] @default([])
 
   workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   address   Address?   @relation(fields: [addressId], references: [id])
@@ -1264,16 +1281,22 @@ enum WebhookEventStatus {
 }
 
 model ApiKey {
-  id          String    @id @default(cuid())
-  workspaceId String
-  name        String
-  prefix      String
-  hashedKey   String    @unique
-  scopes      String[]
-  createdById String
-  lastUsedAt  DateTime?
-  revokedAt   DateTime?
-  createdAt   DateTime  @default(now())
+  id                 String         @id @default(cuid())
+  workspaceId        String
+  name               String
+  prefix             String
+  hashedKey          String         @unique
+  scopes             String[]
+  environment        ApiEnvironment @default(LIVE)
+  lastFour           String?
+  // Per-key request ceiling (requests per minute), enforced from the shared durable store.
+  rateLimitPerMinute Int            @default(120)
+  expiresAt          DateTime?
+  rotatedFromId      String?
+  createdById        String
+  lastUsedAt         DateTime?
+  revokedAt          DateTime?
+  createdAt          DateTime       @default(now())
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   createdBy User      @relation(fields: [createdById], references: [id])
@@ -1400,4 +1423,451 @@ model ApplicationSetting {
   value       Json
   description String?
   updatedAt   DateTime @updatedAt
+}
+
+// ============================================================================
+// SENDNARO: automated transactional messaging API
+// Tenant = Workspace. Every row below is scoped by (workspaceId, environment).
+// ============================================================================
+
+enum ApiEnvironment {
+  SANDBOX
+  LIVE
+}
+
+enum DeliveryChannel {
+  WHATSAPP
+  TELEGRAM
+}
+
+enum DeliveryKind {
+  INVOICE
+  OTP
+  NOTIFICATION
+}
+
+enum DeliveryStatus {
+  QUEUED
+  PROCESSING
+  PROVIDER_ACCEPTED
+  SENT
+  DELIVERED
+  READ
+  RETRYING
+  FAILED
+  EXPIRED
+  BLOCKED
+  SANDBOX_SIMULATED
+}
+
+enum ConnectionStatus {
+  NOT_CONNECTED
+  PENDING_SETUP
+  CONNECTED
+  ERROR
+  REVOKED
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  DONE
+  DEAD
+}
+
+enum OtpStatus {
+  PENDING
+  VERIFIED
+  EXPIRED
+  LOCKED
+  SUPERSEDED
+}
+
+enum IssuedDocumentType {
+  INVOICE
+  RECEIPT
+}
+
+enum ActivationPaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  REFUNDED
+  DISPUTED
+}
+
+enum EntitlementSource {
+  PAYMENT
+  COMPLIMENTARY
+}
+
+enum IdempotencyState {
+  IN_PROGRESS
+  COMPLETE
+}
+
+enum MerchantWebhookStatus {
+  PENDING
+  RETRYING
+  SUCCEEDED
+  FAILED
+}
+
+model ChannelConnection {
+  id               String           @id @default(cuid())
+  workspaceId      String
+  environment      ApiEnvironment
+  channel          DeliveryChannel
+  status           ConnectionStatus @default(NOT_CONNECTED)
+  displayName      String?
+  // Non-secret identifiers only (phone number id, WABA id, bot username).
+  config           Json             @default("{}")
+  // AES-GCM ciphertext of the provider credentials JSON; never returned by any endpoint.
+  secretCiphertext String?          @db.Text
+  lastCheckedAt    DateTime?
+  lastError        String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, environment, channel])
+}
+
+model Recipient {
+  id                 String         @id @default(cuid())
+  workspaceId        String
+  environment        ApiEnvironment
+  externalCustomerId String
+  name               String
+  whatsappPhone      String?
+  whatsappConsentAt  DateTime?
+  telegramChatId     String?
+  telegramLinkedAt   DateTime?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  workspace  Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  linkTokens TelegramLinkToken[]
+  documents  IssuedDocument[]
+
+  @@unique([workspaceId, environment, externalCustomerId])
+  @@index([telegramChatId])
+}
+
+model TelegramLinkToken {
+  id          String         @id @default(cuid())
+  tokenHash   String         @unique
+  workspaceId String
+  environment ApiEnvironment
+  recipientId String
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime       @default(now())
+
+  recipient Recipient @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, environment])
+}
+
+model IdempotencyRecord {
+  id             String           @id @default(cuid())
+  workspaceId    String
+  environment    ApiEnvironment
+  operation      String
+  key            String
+  requestHash    String
+  state          IdempotencyState @default(IN_PROGRESS)
+  lockedUntil    DateTime
+  responseStatus Int?
+  responseBody   Json?
+  createdAt      DateTime         @default(now())
+  expiresAt      DateTime
+
+  @@unique([workspaceId, environment, operation, key])
+  @@index([expiresAt])
+}
+
+model DocumentCounter {
+  id           String             @id @default(cuid())
+  workspaceId  String
+  environment  ApiEnvironment
+  documentType IssuedDocumentType
+  value        Int                @default(0)
+
+  @@unique([workspaceId, environment, documentType])
+}
+
+// Immutable once created: the snapshot freezes the business profile, customer and computed lines.
+model IssuedDocument {
+  id               String             @id @default(cuid())
+  workspaceId      String
+  environment      ApiEnvironment
+  recipientId      String?
+  documentType     IssuedDocumentType
+  number           String
+  externalOrderId  String
+  paymentStatus    String // 'paid' | 'unpaid'
+  paymentReference String?
+  currency         String
+  subtotalMinor    BigInt
+  discountMinor    BigInt             @default(0)
+  taxMinor         BigInt             @default(0)
+  totalMinor       BigInt
+  snapshot         Json
+  pdfStorageKey    String?
+  pdfGeneratedAt   DateTime?
+  createdAt        DateTime           @default(now())
+
+  workspace  Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  recipient  Recipient? @relation(fields: [recipientId], references: [id])
+  deliveries Delivery[]
+
+  @@unique([workspaceId, environment, documentType, number])
+  @@index([workspaceId, environment, createdAt])
+  @@index([workspaceId, environment, externalOrderId])
+}
+
+model OtpChallenge {
+  id             String         @id @default(cuid())
+  workspaceId    String
+  environment    ApiEnvironment
+  recipientPhone String
+  purpose        String
+  customerRef    String?
+  // Random seed; the code is HMAC(OTP_HMAC_KEY, seed | version). No plaintext code is ever stored.
+  seed           String
+  version        Int            @default(1)
+  status         OtpStatus      @default(PENDING)
+  codeLength     Int            @default(6)
+  attemptCount   Int            @default(0)
+  maxAttempts    Int            @default(5)
+  resendCount    Int            @default(0)
+  expiresAt      DateTime
+  lastSentAt     DateTime?
+  verifiedAt     DateTime?
+  createdAt      DateTime       @default(now())
+
+  workspace  Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  deliveries Delivery[]
+
+  @@index([workspaceId, environment, recipientPhone, createdAt])
+}
+
+model Delivery {
+  id                String          @id @default(cuid())
+  workspaceId       String
+  environment       ApiEnvironment
+  kind              DeliveryKind
+  channel           DeliveryChannel
+  status            DeliveryStatus  @default(QUEUED)
+  simulated         Boolean         @default(false)
+  toAddress         String
+  templateKey       String
+  // Notification body / template parameters. Never contains OTP codes.
+  payload           Json?
+  invoiceId         String?
+  otpChallengeId    String?
+  otpVersion        Int?
+  // Sandbox only: forces a deterministic provider outcome. Rejected on live keys.
+  scenario          String?
+  requestId         String?
+  apiKeyId          String?
+  providerMessageId String?
+  attemptCount      Int             @default(0)
+  nextAttemptAt     DateTime?
+  lastErrorCode     String?
+  lastErrorMessage  String?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  readAt            DateTime?
+  failedAt          DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  workspace Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invoice   IssuedDocument?   @relation(fields: [invoiceId], references: [id])
+  challenge OtpChallenge?     @relation(fields: [otpChallengeId], references: [id])
+  attempts  DeliveryAttempt[]
+
+  @@index([workspaceId, environment, createdAt])
+  @@index([providerMessageId])
+  @@index([status, nextAttemptAt])
+}
+
+model DeliveryAttempt {
+  id                 String    @id @default(cuid())
+  deliveryId         String
+  attemptNo          Int
+  outcome            String // accepted | transient_failure | permanent_failure | throttled | ambiguous
+  errorCode          String?
+  errorMessage       String?
+  providerStatusCode Int?
+  retryAfterSeconds  Int?
+  startedAt          DateTime  @default(now())
+  finishedAt         DateTime?
+
+  delivery Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@index([deliveryId])
+}
+
+// Dedupes provider callbacks and keeps status moving forward only.
+model ProviderStatusEvent {
+  id         String   @id @default(cuid())
+  provider   String
+  externalId String
+  status     String
+  deliveryId String?
+  occurredAt DateTime @default(now())
+
+  @@unique([provider, externalId, status])
+}
+
+// Durable job queue (transactional outbox). Rows are claimed with SKIP LOCKED and re-claimed when a lock expires.
+model OutboxEvent {
+  id          String          @id @default(cuid())
+  type        String
+  payload     Json
+  workspaceId String?
+  environment ApiEnvironment?
+  status      OutboxStatus    @default(PENDING)
+  runAt       DateTime        @default(now())
+  attempts    Int             @default(0)
+  lockedAt    DateTime?
+  lockedBy    String?
+  lastError   String?
+  dedupeKey   String?         @unique
+  createdAt   DateTime        @default(now())
+  doneAt      DateTime?
+
+  @@index([status, runAt])
+}
+
+model MerchantWebhookEndpoint {
+  id               String         @id @default(cuid())
+  workspaceId      String
+  environment      ApiEnvironment
+  url              String
+  secretCiphertext String         @db.Text
+  events           String[]
+  active           Boolean        @default(true)
+  lastSuccessAt    DateTime?
+  createdAt        DateTime       @default(now())
+
+  workspace  Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  deliveries MerchantWebhookDelivery[]
+
+  @@index([workspaceId, environment])
+}
+
+model MerchantWebhookEvent {
+  id          String         @id @default(cuid())
+  workspaceId String
+  environment ApiEnvironment
+  type        String
+  // Sanitized: IDs and outcomes only. Never OTP codes, secrets or message bodies.
+  data        Json
+  createdAt   DateTime       @default(now())
+
+  deliveries MerchantWebhookDelivery[]
+
+  @@index([workspaceId, environment, createdAt])
+}
+
+model MerchantWebhookDelivery {
+  id            String                @id @default(cuid())
+  eventId       String
+  endpointId    String
+  status        MerchantWebhookStatus @default(PENDING)
+  attemptCount  Int                   @default(0)
+  nextAttemptAt DateTime?
+  lastStatus    Int?
+  lastError     String?
+  createdAt     DateTime              @default(now())
+
+  event    MerchantWebhookEvent     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  endpoint MerchantWebhookEndpoint  @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  attempts MerchantWebhookAttempt[]
+
+  @@unique([eventId, endpointId])
+}
+
+model MerchantWebhookAttempt {
+  id             String   @id @default(cuid())
+  deliveryId     String
+  attemptNo      Int
+  responseStatus Int?
+  error          String?
+  durationMs     Int?
+  createdAt      DateTime @default(now())
+
+  delivery MerchantWebhookDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@index([deliveryId])
+}
+
+model RateLimitBucket {
+  key         String
+  windowStart DateTime
+  count       Int      @default(0)
+  expiresAt   DateTime
+
+  @@id([key, windowStart])
+  @@index([expiresAt])
+}
+
+// ----- Activation (one-time licence) billing -----
+
+model ActivationQuote {
+  id          String   @id @default(cuid())
+  workspaceId String
+  amountMinor Int
+  currency    String
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+
+  workspace Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  payments  ActivationPayment[]
+
+  @@index([workspaceId])
+}
+
+model ActivationPayment {
+  id                    String                  @id @default(cuid())
+  workspaceId           String
+  quoteId               String
+  provider              String
+  reference             String                  @unique
+  amountMinor           Int
+  currency              String
+  livemode              Boolean
+  status                ActivationPaymentStatus @default(PENDING)
+  providerTransactionId String?
+  verifiedAt            DateTime?
+  refundedAmountMinor   Int                     @default(0)
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  quote       ActivationQuote @relation(fields: [quoteId], references: [id])
+  entitlement Entitlement?
+
+  @@index([workspaceId, status])
+}
+
+model Entitlement {
+  id                  String            @id @default(cuid())
+  workspaceId         String            @unique
+  source              EntitlementSource
+  activationPaymentId String?           @unique
+  grantedById         String?
+  note                String?
+  grantedAt           DateTime          @default(now())
+  revokedAt           DateTime?
+  revokedReason       String?
+
+  workspace Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  payment   ActivationPayment? @relation(fields: [activationPaymentId], references: [id])
 }

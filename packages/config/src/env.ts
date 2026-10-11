@@ -78,6 +78,21 @@ export const apiEnvSchema = z.object({
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_WEBHOOK_SECRET: z.string().optional(),
 
+  // Sendnaro pipeline
+  // Keys the OTP codes (HMAC). Required in production; dev/test derive one from APP_ENCRYPTION_KEY.
+  OTP_HMAC_KEY: z.string().min(32).optional(),
+  TELEGRAM_BOT_USERNAME: z.string().optional(),
+  // Run the outbox worker loop inside the API process (Docker/Railway/local). Serverless uses the cron drain endpoint.
+  WORKER_INLINE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+  // Dev/test only: lets SANDBOX webhook endpoints target localhost so a local receiver can be used.
+  ALLOW_LOCAL_WEBHOOK_TARGETS: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+
   // Optional AI (Groq) — never required for core functionality.
   AI_PROVIDER: z.enum(['groq', 'none']).default('none'),
   GROQ_API_KEY: z.string().optional(),
@@ -123,6 +138,8 @@ export function parseApiEnv(source: NodeJS.ProcessEnv = process.env): ApiEnv {
  */
 function assertProductionInvariants(env: ApiEnv): void {
   const problems: string[] = [];
+  if (!env.OTP_HMAC_KEY) problems.push('OTP_HMAC_KEY is required in production.');
+  if (env.ALLOW_LOCAL_WEBHOOK_TARGETS) problems.push('ALLOW_LOCAL_WEBHOOK_TARGETS must not be enabled in production.');
 
   if (env.EMAIL_PROVIDER === 'resend' && !env.RESEND_API_KEY) {
     problems.push('EMAIL_PROVIDER=resend requires RESEND_API_KEY.');

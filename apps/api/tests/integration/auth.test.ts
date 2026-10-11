@@ -12,7 +12,7 @@ import {
 describe('authentication', () => {
   it('rejects requests with no Authorization header', async () => {
     const app = buildTestApp();
-    const res = await request(app).get('/api/v1/customers');
+    const res = await request(app).get('/api/legacy/v1/customers');
     expect(res.status).toBe(401);
     expect(res.body.error.code).toBe('UNAUTHENTICATED');
   });
@@ -20,7 +20,7 @@ describe('authentication', () => {
   it('rejects a malformed bearer token', async () => {
     const app = buildTestApp();
     const res = await request(app)
-      .get('/api/v1/customers')
+      .get('/api/legacy/v1/customers')
       .set('Authorization', 'Bearer not-a-real-token');
     expect(res.status).toBe(401);
   });
@@ -34,7 +34,7 @@ describe('authentication', () => {
       -60,
     );
     const res = await request(app)
-      .get('/api/v1/customers')
+      .get('/api/legacy/v1/customers')
       .set('Authorization', `Bearer ${expiredToken}`);
     expect(res.status).toBe(401);
   });
@@ -42,7 +42,7 @@ describe('authentication', () => {
   it('accepts a valid token and grants workspace context', async () => {
     const app = buildTestApp();
     const { token } = await setupWorkspaceContext();
-    const res = await request(app).get('/api/v1/customers').set('Authorization', `Bearer ${token}`);
+    const res = await request(app).get('/api/legacy/v1/customers').set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
   });
 
@@ -50,7 +50,7 @@ describe('authentication', () => {
     const app = buildTestApp();
     const { token } = await setupWorkspaceContext();
     const res = await request(app)
-      .get('/api/v1/admin/stats')
+      .get('/api/console/admin/stats')
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(403);
   });
@@ -60,7 +60,7 @@ describe('authentication', () => {
     const admin = await createTestUser({ isPlatformAdmin: true });
     const token = await mintToken(admin.id, undefined, true);
     const res = await request(app)
-      .get('/api/v1/admin/stats')
+      .get('/api/console/admin/stats')
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
   });

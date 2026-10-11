@@ -89,8 +89,21 @@ async function seedPlatformAdmin() {
   console.log(`Created platform admin: ${email}`);
 }
 
+/** Inserts defaults only when missing, so re-running the seed or redeploying never resets the owner's billing choice. */
+async function seedBillingSettings() {
+  const result = await prisma.applicationSetting.createMany({
+    data: [
+      { key: 'billing_required', value: false, description: 'Require a paid one-time activation for live sending' },
+      { key: 'activation_currency', value: 'NGN', description: 'Activation price currency' },
+    ],
+    skipDuplicates: true,
+  });
+  console.log(`Billing settings: ${result.count} default(s) inserted (billing_required stays whatever the owner chose).`);
+}
+
 async function main() {
   await seedPlans();
+  await seedBillingSettings();
   await seedDocumentTemplates();
   await seedPlatformAdmin();
 }

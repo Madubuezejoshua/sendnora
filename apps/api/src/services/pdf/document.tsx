@@ -166,7 +166,11 @@ export function DocumentPdf({ data }: { data: PdfDocumentData }) {
   return (
     <Document title={`${titleFor(data.kind)} ${data.documentNumber}`}>
       <Page size="A4" style={styles.page}>
-        {data.watermarkText && <Text style={styles.watermark}>{data.watermarkText}</Text>}
+        {data.watermarkText && (
+          <Text style={[styles.watermark, data.watermarkColor ? { color: data.watermarkColor, fontSize: 30 } : {}]}>
+            {data.watermarkText}
+          </Text>
+        )}
 
         {HeaderBlock}
 
@@ -287,9 +291,15 @@ export function DocumentPdf({ data }: { data: PdfDocumentData }) {
           </View>
         )}
 
+        {data.footerText && (
+          <View style={{ marginTop: 18 }}>
+            <Text style={styles.muted}>{data.footerText}</Text>
+          </View>
+        )}
+
         <View style={styles.footer} fixed>
           <Text style={styles.pageNumber}>
-            {data.businessTaxId ? `Tax ID: ${data.businessTaxId}` : ''}
+            {[data.businessTaxId ? `Tax ID: ${data.businessTaxId}` : '', data.poweredByText ?? ''].filter(Boolean).join('  |  ')}
           </Text>
           {data.qrCodeDataUri && <Image src={data.qrCodeDataUri} style={styles.qr} />}
           <Text

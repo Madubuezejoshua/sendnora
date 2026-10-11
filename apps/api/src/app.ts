@@ -9,8 +9,10 @@ import { logger } from './config/logger.js';
 import { healthRouter } from './modules/health/health.routes.js';
 import { paymentsWebhookRouter } from './modules/payments/payments.routes.js';
 import { whatsappWebhookRouter } from './modules/whatsapp/whatsapp-webhook.routes.js';
-import { apiV1Router } from './routes.js';
-import { standardRateLimit } from './middleware/rate-limit.js';
+import { apiV1Router, consoleRouter, legacyRouter } from './routes.js';
+import { sendnaroActivationWebhookRouter } from './sendnaro/billing/billing.routes.js';
+import { sendnaroProviderWebhookRouter } from './sendnaro/delivery/provider-webhooks.routes.js';
+import { standardRateLimit, v1IpRateLimit } from './middleware/rate-limit.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 
 export function createApp(env: ApiEnv): Express {
@@ -58,13 +60,18 @@ export function createApp(env: ApiEnv): Express {
   // Webhook routes MUST be mounted before express.json() — they parse the raw body themselves for signature verification.
   app.use('/api/v1', paymentsWebhookRouter);
   app.use('/api/v1', whatsappWebhookRouter);
+  app.use('/api/v1', sendnaroProviderWebhookRouter);
+  app.use('/api/v1', sendnaroActivationWebhookRouter);
 
   app.use(express.json({ limit: '2mb' }));
   app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
   app.use(healthRouter);
 
-  app.use('/api/v1', standardRateLimit, apiV1Router);
+  // The public API is limited per API key from a shared durable store; this is only a coarse per-IP backstop.
+  app.use('/api/v1', v1IpRateLimit, apiV1Router);
+  app.use('/api/console', standardRateLimit, consoleRouter);
+  app.use('/api/legacy/v1', standardRateLimit, legacyRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

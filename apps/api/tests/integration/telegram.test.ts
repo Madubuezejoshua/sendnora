@@ -47,7 +47,7 @@ describe('telegram channel', () => {
 
     // 2. staff generates the one-time deep link
     const linkRes = await request(app)
-      .post(`/api/v1/customers/${customer.id}/telegram-link`)
+      .post(`/api/legacy/v1/customers/${customer.id}/telegram-link`)
       .set('Authorization', `Bearer ${token}`);
     expect(linkRes.status).toBe(200);
     expect(linkRes.body.data.url).toMatch(/^https:\/\/t\.me\/testbot\?start=.+/);
@@ -94,7 +94,7 @@ describe('telegram channel', () => {
       data: { workspaceId: b.workspace.id, name: 'Bob' },
     });
     const res = await request(app)
-      .post(`/api/v1/customers/${customerB.id}/telegram-link`)
+      .post(`/api/legacy/v1/customers/${customerB.id}/telegram-link`)
       .set('Authorization', `Bearer ${a.token}`);
     expect(res.status).toBe(404);
   });
