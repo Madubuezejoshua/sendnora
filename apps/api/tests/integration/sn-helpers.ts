@@ -91,3 +91,24 @@ export async function addWebhookEndpoint(workspaceId: string, environment: ApiEn
   });
   return { row, secret };
 }
+
+/** Live sends need a connected sender. Credentials here are fixtures; no real provider is ever called. */
+export async function connectWhatsApp(workspaceId: string) {
+  return prisma.channelConnection.upsert({
+    where: { workspaceId_environment_channel: { workspaceId, environment: 'LIVE', channel: 'WHATSAPP' } },
+    create: {
+      workspaceId, environment: 'LIVE', channel: 'WHATSAPP', status: 'CONNECTED',
+      config: { phoneNumberId: '1234567890', templates: { otp: { name: 'otp', language: 'en' }, invoice: { name: 'inv', language: 'en' }, notification: { name: 'note', language: 'en' } } },
+      secretCiphertext: encryptSecret(JSON.stringify({ accessToken: 't'.repeat(30), appSecret: 's'.repeat(20), verifyToken: 'v'.repeat(14) }), getTestEnv().APP_ENCRYPTION_KEY),
+    },
+    update: { status: 'CONNECTED' },
+  });
+}
+
+/** Session token as apps/web would mint it after Auth.js validated a session. */
+export async function sessionToken(userId: string, workspaceId?: string, isPlatformAdmin = false) {
+  const { mintToken } = await import('./setup.js');
+  return mintToken(userId, workspaceId, isPlatformAdmin);
+}
+
+export const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });

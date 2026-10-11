@@ -358,14 +358,11 @@ export async function applyProviderReceipt(input: {
   workspaceId?: string;
   environment?: 'LIVE' | 'SANDBOX';
 }): Promise<boolean> {
-  try {
-    await prisma.providerStatusEvent.create({
-      data: { provider: input.provider, externalId: input.externalId, status: input.status },
-    });
-  } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') return false; // duplicate callback
-    throw err;
-  }
+  const recorded = await prisma.providerStatusEvent.createMany({
+    data: [{ provider: input.provider, externalId: input.externalId, status: input.status }],
+    skipDuplicates: true,
+  });
+  if (recorded.count === 0) return false; // duplicate callback: already processed
 
   const simId = input.externalId.startsWith('sim_') ? input.externalId.slice(4) : undefined;
   const delivery = await prisma.delivery.findFirst({

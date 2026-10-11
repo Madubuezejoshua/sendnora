@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { AppError, type ApiErrorBody } from '@invoicetap/shared';
 import { logger } from '../config/logger.js';
+import { v1ErrorHandler } from '../sendnaro/v1/errors.js';
 
 /**
  * Central error handler. Never leaks stack traces, Prisma internals, or raw
@@ -10,6 +11,13 @@ import { logger } from '../config/logger.js';
  */
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
   const requestId = (req.id as string | undefined) ?? undefined;
+
+  // Body-parser failures happen before any router runs: answer with a client error, not a 500.
+  const parserType = (err as { type?: string } | null)?.type;
+  if (parserType === 'entity.parse.failed' || parserType === 'entity.too.large') {
+    v1ErrorHandler(err, req, res, _next);
+    return;
+  }
 
   if (err instanceof AppError) {
     if (err.status >= 500) {

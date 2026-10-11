@@ -61,20 +61,19 @@ export async function withIdempotency(
   const waitStarted = Date.now();
 
   for (;;) {
-    try {
-      await prisma.idempotencyRecord.create({
-        data: {
+    const claim = await prisma.idempotencyRecord.createMany({
+      data: [
+        {
           ...scope,
           key,
           requestHash,
           lockedUntil: new Date(Date.now() + LOCK_SECONDS * 1000),
           expiresAt: new Date(Date.now() + RETENTION_HOURS * 3600_000),
         },
-      });
-      break; // we own the key
-    } catch (err) {
-      if (!(err instanceof Prisma.PrismaClientKnownRequestError) || err.code !== 'P2002') throw err;
-    }
+      ],
+      skipDuplicates: true,
+    });
+    if (claim.count === 1) break; // we own the key
 
     const existing = await prisma.idempotencyRecord.findUnique({ where });
     if (!existing) continue; // purged between attempts: retry the claim
