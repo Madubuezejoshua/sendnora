@@ -108,6 +108,26 @@ test.describe('business onboarding and console', () => {
     await page.screenshot({ path: '../../test-evidence/screens/console-settings.png' });
   });
 
+  test('payment source: save a Paystack key, get a webhook URL, key is never shown back', async ({
+    page,
+  }) => {
+    const { email, workspace } = await createOwner({ name: 'Pay Co' });
+    await signIn(page, email);
+    await page.goto('/console/settings', { waitUntil: 'networkidle' });
+    await expect(async () => {
+      await page.getByRole('tab', { name: 'Payments' }).click();
+      await expect(page.getByLabel('Paystack secret key')).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 30_000 });
+    await page.getByLabel('Paystack secret key').fill('sk_test_e2e_secret_value');
+    await page.getByRole('button', { name: 'Save payment source' }).click();
+    await expect(page.getByText('/api/v1/webhooks/merchant/paystack/')).toBeVisible();
+    await expect(page.getByText('sk_test_e2e_secret_value')).toHaveCount(0);
+    const src = await prisma.paymentEventSource.findFirstOrThrow({
+      where: { workspaceId: workspace.id },
+    });
+    expect(src.secretCiphertext).not.toContain('sk_test_e2e_secret_value');
+  });
+
   test('API keys: shown once, work against the real API, rotate, revoke', async ({
     page,
     request,

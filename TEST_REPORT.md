@@ -11,7 +11,7 @@ Run on 2026-10-12, Windows 11, Node 24, embedded PostgreSQL (UTF-8). Raw logs: `
 | API unit + integration | `npx vitest run` in `apps/api` | 19 files, **126/126 passed** (`api-full.txt`) |
 | Shared unit | `npm run test --workspace=@sendnaro/shared` | 82/82 (last run before the final small edits) |
 | Web production build | `next build` (clean profile, see SETUP.md) | passes (`static-and-build.txt`) |
-| Browser E2E (Chromium) | `npm run test:e2e --workspace=@sendnaro/web` | full run: 24 passed, 3 failed (`e2e-full.txt`); the 3 failures were all in `admin-isolation` and timed out at login under load. Re-run alone: **4/4 passed** (`e2e-admin.txt`). Earlier full run on the previous code: 27/27. A single clean full-run pass has not been recorded for the final code. |
+| Browser E2E (Chromium) | `npm run test:e2e --workspace=@sendnaro/web` (2 workers) | **28/28 passed** in one clean full run on the final code (`e2e-full.txt`), including the new Payments settings tab |
 
 ## What was real vs simulated
 
@@ -27,4 +27,5 @@ Run on 2026-10-12, Windows 11, Node 24, embedded PostgreSQL (UTF-8). Raw logs: `
 - Deployment under the Sendnaro name; the production Neon database has not had the new migrations applied.
 - Production env vars to add before deploy: `OTP_HMAC_KEY`, `TELEGRAM_BOT_USERNAME`, plus the existing set (see ENVIRONMENT.md).
 - Final logo, legal review, third-party security review.
+- Pattern B has a console screen (Settings > Payments) covered by a browser test; Paystack traffic itself is simulated.
 - Cross-site rejection by the CSRF guard on `/api/proxy` and `/api/sandbox` has no dedicated test (normal same-origin flows are covered by E2E).

@@ -6,9 +6,10 @@ import { PageHeader, Tabs, TabsContent, TabsList, TabsTrigger } from '@sendnaro/
 import { BusinessTab } from '@/components/console/settings/business-tab';
 import { ChannelsTab } from '@/components/console/settings/channels-tab';
 import { WebhooksTab } from '@/components/console/settings/webhooks-tab';
+import { PaymentsTab } from '@/components/console/settings/payments-tab';
 import { SecurityTab } from '@/components/console/settings/security-tab';
 
-const TABS = ['business', 'channels', 'webhooks', 'security'] as const;
+const TABS = ['business', 'channels', 'webhooks', 'payments', 'security'] as const;
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -29,6 +30,7 @@ export default function SettingsPage() {
           <TabsTrigger value="business">Business</TabsTrigger>
           <TabsTrigger value="channels">Channels</TabsTrigger>
           <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
+          <TabsTrigger value="payments">Payments</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
         <TabsContent value="business" className="pt-6">
@@ -39,6 +41,9 @@ export default function SettingsPage() {
         </TabsContent>
         <TabsContent value="webhooks" className="pt-6">
           <WebhooksTab />
+        </TabsContent>
+        <TabsContent value="payments" className="pt-6">
+          <PaymentsTab />
         </TabsContent>
         <TabsContent value="security" className="pt-6">
           <SecurityTab />
