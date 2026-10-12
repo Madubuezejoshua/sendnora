@@ -1,12 +1,21 @@
 import { sendnaro, SendnaroError, type SendnaroConfig } from './client';
 
 /** Step 1 (your backend): the customer typed their WhatsApp number on your site. */
-export async function startPhoneVerification(config: SendnaroConfig, phone: string, customerRef: string) {
-  const { body } = await sendnaro<{ id: string; expires_at: string; resend_available_at?: string }>(config, 'POST', '/otp/challenges', {
-    phone,
-    purpose: 'phone_verification', // allow-listed: login | phone_verification | transaction_confirmation | account_recovery
-    customer_ref: customerRef,
-  });
+export async function startPhoneVerification(
+  config: SendnaroConfig,
+  phone: string,
+  customerRef: string,
+) {
+  const { body } = await sendnaro<{ id: string; expires_at: string; resend_available_at?: string }>(
+    config,
+    'POST',
+    '/otp/challenges',
+    {
+      phone,
+      purpose: 'phone_verification', // allow-listed: login | phone_verification | transaction_confirmation | account_recovery
+      customer_ref: customerRef,
+    },
+  );
   // The response never contains the code. Return only the challenge id to your front end.
   return { challengeId: body.id, expiresAt: body.expires_at };
 }
@@ -18,7 +27,12 @@ export async function startPhoneVerification(config: SendnaroConfig, phone: stri
  * Note: this proves access to that WhatsApp number. It does not prove identity and it does not
  * verify an email address; verify email addresses by email.
  */
-export async function confirmPhoneVerification(config: SendnaroConfig, challengeId: string, phone: string, code: string) {
+export async function confirmPhoneVerification(
+  config: SendnaroConfig,
+  challengeId: string,
+  phone: string,
+  code: string,
+) {
   try {
     await sendnaro(config, 'POST', `/otp/challenges/${challengeId}/verify`, {
       code,
@@ -27,7 +41,10 @@ export async function confirmPhoneVerification(config: SendnaroConfig, challenge
     });
     return { verified: true as const };
   } catch (err) {
-    if (err instanceof SendnaroError && ['otp_invalid', 'otp_expired', 'otp_locked'].includes(err.code)) {
+    if (
+      err instanceof SendnaroError &&
+      ['otp_invalid', 'otp_expired', 'otp_locked'].includes(err.code)
+    ) {
       return { verified: false as const, reason: err.code, message: err.message };
     }
     throw err;

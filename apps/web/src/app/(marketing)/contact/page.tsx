@@ -13,7 +13,8 @@ export default function ContactPage() {
     <div className="mx-auto max-w-md px-4 py-16 sm:px-6">
       <h1 className="text-3xl font-semibold tracking-tight">Support</h1>
       <p className="text-muted-foreground mt-2 text-sm">
-        Questions or a problem with an integration? Send a message. Include the request_id from any API error so we can find it.
+        Questions or a problem with an integration? Send a message. Include the request_id from any
+        API error so we can find it.
       </p>
       <div className="mt-8">
         <ContactForm />

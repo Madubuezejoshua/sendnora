@@ -105,7 +105,10 @@ function businessSnapshot(workspace: {
   const p = workspace.businessProfile;
   return {
     name: p?.displayName ?? workspace.name,
-    addressLines: (p?.addressText ?? '').split('\n').map((l) => l.trim()).filter(Boolean),
+    addressLines: (p?.addressText ?? '')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean),
     email: p?.contactEmail ?? undefined,
     phone: p?.contactPhone ?? undefined,
     website: p?.website ?? undefined,
@@ -166,7 +169,10 @@ export async function createInvoice(
   await assertChannelsReady(ctx, body.channels);
   if (body.document_type === 'receipt') {
     if (body.payment.status !== 'paid' || !body.payment.reference) {
-      throw new AppError('UNPROCESSABLE', 'A receipt requires payment.status "paid" and a payment.reference');
+      throw new AppError(
+        'UNPROCESSABLE',
+        'A receipt requires payment.status "paid" and a payment.reference',
+      );
     }
   }
   const { totals, taxMode } = computeTotals(body);
@@ -199,14 +205,23 @@ export async function createInvoice(
             documentType: type,
           },
         },
-        create: { workspaceId: ctx.workspaceId, environment: ctx.environment, documentType: type, value: 1 },
+        create: {
+          workspaceId: ctx.workspaceId,
+          environment: ctx.environment,
+          documentType: type,
+          value: 1,
+        },
         update: { value: { increment: 1 } },
       });
 
       const def = getCurrency(body.currency);
       const snapshot: DocumentSnapshot = {
         business: businessSnapshot(workspace),
-        customer: { externalCustomerId: body.customer.external_customer_id, name: body.customer.name, email: body.customer.email },
+        customer: {
+          externalCustomerId: body.customer.external_customer_id,
+          name: body.customer.name,
+          email: body.customer.email,
+        },
         taxMode,
         currency: body.currency,
         lines: totals.lines.map((l, i) => ({
@@ -268,7 +283,10 @@ export async function createInvoice(
         dedupeKey: `invoice.render:${doc.id}`,
       });
 
-      return { status: 202, body: { ...presentInvoice(doc, deliveries), request_id: ctx.requestId } };
+      return {
+        status: 202,
+        body: { ...presentInvoice(doc, deliveries), request_id: ctx.requestId },
+      };
     },
   );
   return result;
@@ -283,13 +301,20 @@ export async function getInvoice(ctx: SnContext, publicInvoiceId: string) {
       })
     : null;
   if (!doc) throw new AppError('NOT_FOUND', 'Invoice not found');
-  const deliveries = await prisma.delivery.findMany({ where: { invoiceId: doc.id }, orderBy: { createdAt: 'asc' } });
+  const deliveries = await prisma.delivery.findMany({
+    where: { invoiceId: doc.id },
+    orderBy: { createdAt: 'asc' },
+  });
   let pdfUrl: string | undefined;
   if (doc.pdfStorageKey) {
     pdfUrl = await getStorageProvider().getSignedDownloadUrl(doc.pdfStorageKey, 600);
   }
   return {
-    ...presentInvoice(doc, deliveries, pdfUrl ? { pdf: { status: 'ready', url: pdfUrl, url_expires_in_seconds: 600 } } : {}),
+    ...presentInvoice(
+      doc,
+      deliveries,
+      pdfUrl ? { pdf: { status: 'ready', url: pdfUrl, url_expires_in_seconds: 600 } } : {},
+    ),
     request_id: ctx.requestId,
   };
 }
@@ -323,9 +348,17 @@ export function snapshotToPdfData(doc: IssuedDocument): PdfDocumentData {
     customerAddressLines: [],
     customerEmail: s.customer.email,
     documentNumber: doc.number,
-    issueDateLabel: new Date(s.issueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+    issueDateLabel: new Date(s.issueDate).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    }),
     dueDateLabel: s.dueDate
-      ? new Date(s.dueDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+      ? new Date(s.dueDate).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        })
       : undefined,
     statusLabel: paid ? 'PAID' : 'UNPAID',
     currencyCode: s.currency,
@@ -343,7 +376,8 @@ export function snapshotToPdfData(doc: IssuedDocument): PdfDocumentData {
     amountPaidLabel: paid ? label(s.totals.totalMinor, s.currency) : undefined,
     balanceDueLabel: paid ? undefined : label(s.totals.totalMinor, s.currency),
     notes: s.notes,
-    paymentInstructions: paid && s.payment.reference ? `Payment reference: ${s.payment.reference}` : undefined,
+    paymentInstructions:
+      paid && s.payment.reference ? `Payment reference: ${s.payment.reference}` : undefined,
     footerText: s.business.footer,
     poweredByText: 'Delivered with Sendnaro',
     watermarkText: sandbox ? 'SANDBOX - NOT A REAL TRANSACTION' : undefined,
@@ -374,13 +408,18 @@ export async function renderInvoiceJob(invoiceId: string, attempt: number): Prom
 
   try {
     const data = snapshotToPdfData(doc);
-    data.logoDataUri = await loadLogoDataUri((doc.snapshot as unknown as DocumentSnapshot).business.logoObjectKey);
+    data.logoDataUri = await loadLogoDataUri(
+      (doc.snapshot as unknown as DocumentSnapshot).business.logoObjectKey,
+    );
     const pdf = await renderDocumentPdf(data);
     const key = `sendnaro/${doc.workspaceId}/${doc.environment.toLowerCase()}/invoices/${doc.id}.pdf`;
     await getStorageProvider().putObject({ key, body: pdf, contentType: 'application/pdf' });
 
     await prisma.$transaction(async (tx) => {
-      await tx.issuedDocument.update({ where: { id: doc.id }, data: { pdfStorageKey: key, pdfGeneratedAt: new Date() } });
+      await tx.issuedDocument.update({
+        where: { id: doc.id },
+        data: { pdfStorageKey: key, pdfGeneratedAt: new Date() },
+      });
       const queued = await tx.delivery.findMany({ where: { invoiceId: doc.id, status: 'QUEUED' } });
       for (const d of queued) {
         await enqueue(tx, {
@@ -395,7 +434,11 @@ export async function renderInvoiceJob(invoiceId: string, attempt: number): Prom
         workspaceId: doc.workspaceId,
         environment: doc.environment,
         type: 'invoice.generated',
-        data: { invoice_id: publicId('invoice', doc.id), number: doc.number, external_order_id: doc.externalOrderId },
+        data: {
+          invoice_id: publicId('invoice', doc.id),
+          number: doc.number,
+          external_order_id: doc.externalOrderId,
+        },
       });
     });
   } catch (err) {
@@ -405,7 +448,12 @@ export async function renderInvoiceJob(invoiceId: string, attempt: number): Prom
     await prisma.$transaction(async (tx) => {
       await tx.delivery.updateMany({
         where: { invoiceId: doc.id, status: 'QUEUED' },
-        data: { status: 'FAILED', lastErrorCode: 'pdf_generation_failed', lastErrorMessage: 'The document could not be generated', failedAt: new Date() },
+        data: {
+          status: 'FAILED',
+          lastErrorCode: 'pdf_generation_failed',
+          lastErrorMessage: 'The document could not be generated',
+          failedAt: new Date(),
+        },
       });
       await emitWebhookEvent(tx, {
         workspaceId: doc.workspaceId,

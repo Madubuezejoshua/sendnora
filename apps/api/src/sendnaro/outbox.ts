@@ -58,7 +58,9 @@ export async function claimBatch(
   const now = new Date();
   const lockExpiry = new Date(now.getTime() - LOCK_TIMEOUT_SECONDS * 1000);
   const scope = workspaceId ? Prisma.sql`AND "workspaceId" = ${workspaceId}` : Prisma.empty;
-  const envScope = environment ? Prisma.sql`AND "environment" = ${environment}::"ApiEnvironment"` : Prisma.empty;
+  const envScope = environment
+    ? Prisma.sql`AND "environment" = ${environment}::"ApiEnvironment"`
+    : Prisma.empty;
   return prisma.$queryRaw<ClaimedRow[]>`
     UPDATE "OutboxEvent"
        SET "status" = 'PROCESSING', "lockedAt" = (${now}::timestamptz AT TIME ZONE 'UTC'), "lockedBy" = ${workerId},
@@ -76,7 +78,12 @@ export async function claimBatch(
 
 export type JobHandler = (
   payload: Record<string, unknown>,
-  job: { id: string; attempts: number; workspaceId: string | null; environment: ApiEnvironment | null },
+  job: {
+    id: string;
+    attempts: number;
+    workspaceId: string | null;
+    environment: ApiEnvironment | null;
+  },
 ) => Promise<void>;
 
 /** A handler throws RetryLater to reschedule without counting as a crash. */
@@ -101,7 +108,13 @@ export function backoffMs(attempt: number, baseMs = 2000, capMs = 15 * 60_000): 
 }
 
 export async function drainOutbox(
-  opts: { limit?: number; workerId?: string; maxRounds?: number; workspaceId?: string; environment?: ApiEnvironment } = {},
+  opts: {
+    limit?: number;
+    workerId?: string;
+    maxRounds?: number;
+    workspaceId?: string;
+    environment?: ApiEnvironment;
+  } = {},
 ): Promise<{ processed: number }> {
   const workerId = opts.workerId ?? `w_${randomUUID().slice(0, 8)}`;
   const limit = opts.limit ?? 25;

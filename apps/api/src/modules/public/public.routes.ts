@@ -31,7 +31,10 @@ publicRouter.get('/public/platform', async (_req, res, next) => {
     res.json({
       data: {
         billingRequired: s.billingRequired,
-        activationPrice: s.billingRequired && s.activationPriceMinor ? { amountMinor: s.activationPriceMinor, currency: s.activationCurrency } : null,
+        activationPrice:
+          s.billingRequired && s.activationPriceMinor
+            ? { amountMinor: s.activationPriceMinor, currency: s.activationCurrency }
+            : null,
       },
     });
   } catch (err) {

@@ -5,6 +5,7 @@ import { decryptSecret } from '@sendnaro/database/encryption';
 import { parseApiEnv } from '@sendnaro/config/env';
 import { logger } from '../../config/logger.js';
 import { webhookRateLimit } from '../../middleware/rate-limit.js';
+import { handleMerchantPaystackEvent } from '../payments/merchant-paystack.js';
 import { applyProviderReceipt, type ProviderReceipt } from './engine.js';
 import type { WhatsAppSecrets } from './whatsapp.provider.js';
 
@@ -20,7 +21,9 @@ sendnaroProviderWebhookRouter.use('/webhooks/whatsapp/:connectionId', webhookRat
 async function loadConnection(id: string) {
   const row = await prisma.channelConnection.findFirst({ where: { id, channel: 'WHATSAPP' } });
   if (!row?.secretCiphertext) return null;
-  const secrets = JSON.parse(decryptSecret(row.secretCiphertext, parseApiEnv().APP_ENCRYPTION_KEY)) as WhatsAppSecrets;
+  const secrets = JSON.parse(
+    decryptSecret(row.secretCiphertext, parseApiEnv().APP_ENCRYPTION_KEY),
+  ) as WhatsAppSecrets;
   return { row, secrets };
 }
 
@@ -45,7 +48,11 @@ const STATUS_MAP: Record<string, ProviderReceipt> = {
   failed: 'failed',
 };
 
-export function verifyMetaSignature(appSecret: string, rawBody: Buffer, header: string | undefined): boolean {
+export function verifyMetaSignature(
+  appSecret: string,
+  rawBody: Buffer,
+  header: string | undefined,
+): boolean {
   if (!header?.startsWith('sha256=')) return false;
   const expected = createHmac('sha256', appSecret).update(rawBody).digest('hex');
   const a = Buffer.from(expected);
@@ -59,13 +66,27 @@ sendnaroProviderWebhookRouter.post(
   async (req, res) => {
     const conn = await loadConnection(String(req.params.connectionId));
     const rawBody = req.body as Buffer;
-    if (!conn?.secrets.appSecret || !verifyMetaSignature(conn.secrets.appSecret, rawBody, req.headers['x-hub-signature-256'] as string | undefined)) {
+    if (
+      !conn?.secrets.appSecret ||
+      !verifyMetaSignature(
+        conn.secrets.appSecret,
+        rawBody,
+        req.headers['x-hub-signature-256'] as string | undefined,
+      )
+    ) {
       res.status(401).end();
       return;
     }
     try {
       const payload = JSON.parse(rawBody.toString('utf8')) as {
-        entry?: { changes?: { value?: { metadata?: { phone_number_id?: string }; statuses?: { id: string; status: string; errors?: { code?: number }[] }[] } }[] }[];
+        entry?: {
+          changes?: {
+            value?: {
+              metadata?: { phone_number_id?: string };
+              statuses?: { id: string; status: string; errors?: { code?: number }[] }[];
+            };
+          }[];
+        }[];
       };
       const phoneNumberId = (conn.row.config as { phoneNumberId?: string }).phoneNumberId;
       for (const entry of payload.entry ?? []) {
@@ -90,5 +111,26 @@ sendnaroProviderWebhookRouter.post(
       logger.error({ err }, 'WhatsApp status callback processing failed'); // still 200: Meta retries non-2xx for days
     }
     res.status(200).json({ received: true });
+  },
+);
+
+/** Merchant-side Paystack purchase events (integration pattern B). Verified with the merchant's own key. */
+sendnaroProviderWebhookRouter.use('/webhooks/merchant/paystack/:sourceId', webhookRateLimit);
+sendnaroProviderWebhookRouter.post(
+  '/webhooks/merchant/paystack/:sourceId',
+  raw({ type: '*/*', limit: '1mb' }),
+  async (req, res, next) => {
+    try {
+      const sig = req.header('x-paystack-signature');
+      const out = await handleMerchantPaystackEvent(
+        String(req.params.sourceId),
+        req.body as Buffer,
+        sig,
+      );
+      if (out.body) res.status(out.status).json(out.body);
+      else res.status(out.status).end();
+    } catch (err) {
+      next(err);
+    }
   },
 );

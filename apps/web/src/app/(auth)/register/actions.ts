@@ -41,7 +41,9 @@ export async function registerAction(input: {
   const env = getWebEnv();
   const verifyUrl = `${env.NEXT_PUBLIC_APP_URL}/verify-email?token=${token}&email=${encodeURIComponent(user.email)}`;
   const content = verifyEmailContent(user.name ?? user.email, verifyUrl);
-  await sendAuthEmail(user.email, content.subject, content.html, content.text).catch((err: Error) => console.error('Auth email was not sent:', err.message));
+  await sendAuthEmail(user.email, content.subject, content.html, content.text).catch((err: Error) =>
+    console.error('Auth email was not sent:', err.message),
+  );
 
   return { ok: true };
 }

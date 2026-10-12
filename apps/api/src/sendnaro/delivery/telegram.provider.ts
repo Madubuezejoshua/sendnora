@@ -16,7 +16,11 @@ export const telegramProvider: ChannelProvider = {
   async send(req: SendRequest): Promise<ProviderOutcome> {
     const token = parseApiEnv().TELEGRAM_BOT_TOKEN;
     if (!token) {
-      return { kind: 'permanent', code: 'setup_required', message: 'Telegram bot is not configured' };
+      return {
+        kind: 'permanent',
+        code: 'setup_required',
+        message: 'Telegram bot is not configured',
+      };
     }
     const document = req.kind === 'INVOICE' ? req.document : undefined;
     const method = document ? 'sendDocument' : 'sendMessage';
@@ -52,15 +56,31 @@ export const telegramProvider: ChannelProvider = {
         };
       }
       if (res.status >= 500) {
-        return { kind: 'transient', code: 'provider_unavailable', message: `Telegram error ${res.status}` };
+        return {
+          kind: 'transient',
+          code: 'provider_unavailable',
+          message: `Telegram error ${res.status}`,
+        };
       }
       if (json.error_code === 403) {
-        return { kind: 'permanent', code: 'recipient_blocked_bot', message: 'The recipient blocked or left the bot' };
+        return {
+          kind: 'permanent',
+          code: 'recipient_blocked_bot',
+          message: 'The recipient blocked or left the bot',
+        };
       }
-      return { kind: 'permanent', code: 'provider_rejected', message: 'Telegram rejected the message' };
+      return {
+        kind: 'permanent',
+        code: 'provider_rejected',
+        message: 'Telegram rejected the message',
+      };
     } catch (err) {
       if ((err as Error).name === 'AbortError') {
-        return { kind: 'ambiguous', code: 'provider_timeout', message: 'Request to Telegram timed out' };
+        return {
+          kind: 'ambiguous',
+          code: 'provider_timeout',
+          message: 'Request to Telegram timed out',
+        };
       }
       return { kind: 'transient', code: 'network_error', message: 'Could not reach Telegram' };
     } finally {

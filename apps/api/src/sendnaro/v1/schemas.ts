@@ -25,8 +25,14 @@ export const OTP_PURPOSES = [
 const quantitySchema = z
   .union([z.number(), z.string()])
   .transform((v) => String(v).trim())
-  .refine((v) => /^\d{1,7}(\.\d{1,3})?$/.test(v), 'must be a positive decimal with at most 3 decimal places')
-  .refine((v) => Number(v) > 0 && Number(v) <= 1_000_000, 'must be greater than 0 and at most 1,000,000');
+  .refine(
+    (v) => /^\d{1,7}(\.\d{1,3})?$/.test(v),
+    'must be a positive decimal with at most 3 decimal places',
+  )
+  .refine(
+    (v) => Number(v) > 0 && Number(v) <= 1_000_000,
+    'must be greater than 0 and at most 1,000,000',
+  );
 
 export const invoiceItemSchema = z
   .object({
@@ -80,7 +86,10 @@ export const createOtpSchema = z
 
 export const verifyOtpSchema = z
   .object({
-    code: z.string().trim().regex(/^\d{4,8}$/, 'must be 4 to 8 digits'),
+    code: z
+      .string()
+      .trim()
+      .regex(/^\d{4,8}$/, 'must be 4 to 8 digits'),
     phone: z.string().trim().min(5).max(32),
     purpose: z.enum(OTP_PURPOSES),
   })
@@ -107,7 +116,10 @@ export const createNotificationSchema = z
       })
       .strict()
       .default({}),
-    link: z.object({ url: z.string().url().max(500) }).strict().optional(),
+    link: z
+      .object({ url: z.string().url().max(500) })
+      .strict()
+      .optional(),
     consent: z.object({ whatsapp_transactional: z.boolean().optional() }).strict().optional(),
     scenario: z.string().max(40).optional(),
   })

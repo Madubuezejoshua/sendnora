@@ -33,8 +33,14 @@ export async function makeKey(
   const s = generateSecret(environment);
   const record = await prisma.apiKey.create({
     data: {
-      workspaceId, createdById: userId, name: `${environment} key`, environment,
-      prefix: s.prefix, lastFour: s.lastFour, hashedKey: s.hash, scopes: [...scopes],
+      workspaceId,
+      createdById: userId,
+      name: `${environment} key`,
+      environment,
+      prefix: s.prefix,
+      lastFour: s.lastFour,
+      hashedKey: s.hash,
+      scopes: [...scopes],
     },
   });
   return { key: s.key, record };
@@ -59,7 +65,11 @@ export function invoiceBody(overrides: Record<string, unknown> = {}) {
     external_order_id: `order_${Math.random().toString(36).slice(2, 10)}`,
     document_type: 'receipt',
     payment: { status: 'paid', reference: 'merchant_payment_1' },
-    customer: { external_customer_id: 'customer_42', name: 'Test Customer', whatsapp_phone: '+2348012345678' },
+    customer: {
+      external_customer_id: 'customer_42',
+      name: 'Test Customer',
+      whatsapp_phone: '+2348012345678',
+    },
     currency: 'NGN',
     items: [{ description: 'Sample purchase', quantity: 1, unit_amount_minor: 500000 }],
     channels: ['whatsapp'],
@@ -82,12 +92,27 @@ export async function startReceiver(statusFor: (n: number) => number = () => 200
   });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   const port = (server.address() as { port: number }).port;
-  return { url: `http://127.0.0.1:${port}/hook`, received, close: () => new Promise<void>((r) => server.close(() => r())) };
+  return {
+    url: `http://127.0.0.1:${port}/hook`,
+    received,
+    close: () => new Promise<void>((r) => server.close(() => r())),
+  };
 }
 
-export async function addWebhookEndpoint(workspaceId: string, environment: ApiEnvironment, url: string, secret = 'whsec_testsecret') {
+export async function addWebhookEndpoint(
+  workspaceId: string,
+  environment: ApiEnvironment,
+  url: string,
+  secret = 'whsec_testsecret',
+) {
   const row = await prisma.merchantWebhookEndpoint.create({
-    data: { workspaceId, environment, url, events: ['*'], secretCiphertext: encryptSecret(secret, getTestEnv().APP_ENCRYPTION_KEY) },
+    data: {
+      workspaceId,
+      environment,
+      url,
+      events: ['*'],
+      secretCiphertext: encryptSecret(secret, getTestEnv().APP_ENCRYPTION_KEY),
+    },
   });
   return { row, secret };
 }
@@ -95,11 +120,30 @@ export async function addWebhookEndpoint(workspaceId: string, environment: ApiEn
 /** Live sends need a connected sender. Credentials here are fixtures; no real provider is ever called. */
 export async function connectWhatsApp(workspaceId: string) {
   return prisma.channelConnection.upsert({
-    where: { workspaceId_environment_channel: { workspaceId, environment: 'LIVE', channel: 'WHATSAPP' } },
+    where: {
+      workspaceId_environment_channel: { workspaceId, environment: 'LIVE', channel: 'WHATSAPP' },
+    },
     create: {
-      workspaceId, environment: 'LIVE', channel: 'WHATSAPP', status: 'CONNECTED',
-      config: { phoneNumberId: '1234567890', templates: { otp: { name: 'otp', language: 'en' }, invoice: { name: 'inv', language: 'en' }, notification: { name: 'note', language: 'en' } } },
-      secretCiphertext: encryptSecret(JSON.stringify({ accessToken: 't'.repeat(30), appSecret: 's'.repeat(20), verifyToken: 'v'.repeat(14) }), getTestEnv().APP_ENCRYPTION_KEY),
+      workspaceId,
+      environment: 'LIVE',
+      channel: 'WHATSAPP',
+      status: 'CONNECTED',
+      config: {
+        phoneNumberId: '1234567890',
+        templates: {
+          otp: { name: 'otp', language: 'en' },
+          invoice: { name: 'inv', language: 'en' },
+          notification: { name: 'note', language: 'en' },
+        },
+      },
+      secretCiphertext: encryptSecret(
+        JSON.stringify({
+          accessToken: 't'.repeat(30),
+          appSecret: 's'.repeat(20),
+          verifyToken: 'v'.repeat(14),
+        }),
+        getTestEnv().APP_ENCRYPTION_KEY,
+      ),
     },
     update: { status: 'CONNECTED' },
   });

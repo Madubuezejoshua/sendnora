@@ -38,6 +38,10 @@ export function LoginForm() {
       redirect: false,
     });
 
+    if (result?.code === 'email_not_verified') {
+      setFormError('Please verify your email first. Open the link in the message we sent you, then log in.');
+      return;
+    }
     if (result?.error) {
       setShowTotp(true);
       setFormError('Incorrect email/password, or a two-factor code is required.');

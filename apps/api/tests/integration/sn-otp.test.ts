@@ -22,11 +22,21 @@ async function sandbox() {
 }
 
 const create = (key: string, body: Record<string, unknown> = {}) =>
-  request(app()).post('/api/v1/otp/challenges').set(auth(key)).send({ phone: PHONE, purpose: 'login', customer_ref: 'cust_1', ...body });
+  request(app())
+    .post('/api/v1/otp/challenges')
+    .set(auth(key))
+    .send({ phone: PHONE, purpose: 'login', customer_ref: 'cust_1', ...body });
 const inbox = async (key: string, phone = PHONE) =>
-  (await request(app()).get('/api/v1/sandbox/otp-inbox').query({ phone }).set(auth(key))).body.messages as [{ challenge_id: string; code: string }, ...{ challenge_id: string; code: string }[]];
+  (await request(app()).get('/api/v1/sandbox/otp-inbox').query({ phone }).set(auth(key))).body
+    .messages as [
+    { challenge_id: string; code: string },
+    ...{ challenge_id: string; code: string }[],
+  ];
 const verify = (key: string, id: string, code: string, extra: Record<string, unknown> = {}) =>
-  request(app()).post(`/api/v1/otp/challenges/${id}/verify`).set(auth(key)).send({ code, phone: PHONE, purpose: 'login', ...extra });
+  request(app())
+    .post(`/api/v1/otp/challenges/${id}/verify`)
+    .set(auth(key))
+    .send({ code, phone: PHONE, purpose: 'login', ...extra });
 
 describe('WhatsApp OTP challenges', () => {
   it('creates a challenge, exposes the code only in the sandbox inbox, and verifies exactly once', async () => {
@@ -73,7 +83,10 @@ describe('WhatsApp OTP challenges', () => {
   it('rejects an expired code', async () => {
     const { key, workspace } = await sandbox();
     const res = await create(key);
-    await prisma.otpChallenge.updateMany({ where: { workspaceId: workspace.id }, data: { expiresAt: new Date(Date.now() - 1000) } });
+    await prisma.otpChallenge.updateMany({
+      where: { workspaceId: workspace.id },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
     const r = await verify(key, res.body.id, '123456');
     expect(r.body.error.code).toBe('otp_expired');
   });
@@ -110,9 +123,14 @@ describe('WhatsApp OTP challenges', () => {
     const res = await create(key);
     await drain(workspace.id);
     const [{ code: v1 }] = await inbox(key);
-    await prisma.otpChallenge.updateMany({ where: { workspaceId: workspace.id }, data: { lastSentAt: new Date(Date.now() - 60_000) } });
+    await prisma.otpChallenge.updateMany({
+      where: { workspaceId: workspace.id },
+      data: { lastSentAt: new Date(Date.now() - 60_000) },
+    });
 
-    const resend = await request(app()).post(`/api/v1/otp/challenges/${res.body.id}/resend`).set(auth(key));
+    const resend = await request(app())
+      .post(`/api/v1/otp/challenges/${res.body.id}/resend`)
+      .set(auth(key));
     expect(resend.status).toBe(202);
     const [{ code: v2 }] = await inbox(key);
     expect(v2).not.toBe(v1);
@@ -139,7 +157,9 @@ describe('WhatsApp OTP challenges', () => {
     const { key } = await sandbox();
     const res = await create(key);
     const [{ code }] = await inbox(key);
-    const results = await Promise.all(Array.from({ length: 8 }, () => verify(key, res.body.id, code)));
+    const results = await Promise.all(
+      Array.from({ length: 8 }, () => verify(key, res.body.id, code)),
+    );
     expect(results.filter((r) => r.status === 200)).toHaveLength(1);
     expect(results.filter((r) => r.status === 422).length).toBe(7);
   });
@@ -154,7 +174,9 @@ describe('WhatsApp OTP challenges', () => {
     expect((await verify(b.key, res.body.id, code)).status).toBe(404); // other tenant
     expect((await verify(liveKey.key, res.body.id, code)).status).toBe(404); // same tenant, other environment
     expect((await verify(a.key, res.body.id, code, { phone: '+2348099900000' })).status).toBe(404); // other recipient
-    expect((await verify(a.key, res.body.id, code, { purpose: 'account_recovery' })).status).toBe(404); // other purpose
+    expect((await verify(a.key, res.body.id, code, { purpose: 'account_recovery' })).status).toBe(
+      404,
+    ); // other purpose
     expect((await verify(a.key, res.body.id, code)).status).toBe(200); // the rightful caller still can
   });
 
@@ -163,9 +185,22 @@ describe('WhatsApp OTP challenges', () => {
     const live = await makeKey(biz.workspace.id, biz.user.id, 'LIVE');
     await prisma.channelConnection.create({
       data: {
-        workspaceId: biz.workspace.id, environment: 'LIVE', channel: 'WHATSAPP', status: 'CONNECTED',
-        config: { phoneNumberId: '1234567890', templates: { otp: { name: 'otp', language: 'en' } } },
-        secretCiphertext: encryptSecret(JSON.stringify({ accessToken: 't'.repeat(30), appSecret: 's'.repeat(20), verifyToken: 'v'.repeat(14) }), getTestEnv().APP_ENCRYPTION_KEY),
+        workspaceId: biz.workspace.id,
+        environment: 'LIVE',
+        channel: 'WHATSAPP',
+        status: 'CONNECTED',
+        config: {
+          phoneNumberId: '1234567890',
+          templates: { otp: { name: 'otp', language: 'en' } },
+        },
+        secretCiphertext: encryptSecret(
+          JSON.stringify({
+            accessToken: 't'.repeat(30),
+            appSecret: 's'.repeat(20),
+            verifyToken: 'v'.repeat(14),
+          }),
+          getTestEnv().APP_ENCRYPTION_KEY,
+        ),
       },
     });
     let seenCode = '';
@@ -185,7 +220,13 @@ describe('WhatsApp OTP challenges', () => {
       await prisma.outboxEvent.findMany({ where: { workspaceId: biz.workspace.id } }),
       await prisma.deliveryAttempt.findMany(),
       await prisma.merchantWebhookEvent.findMany({ where: { workspaceId: biz.workspace.id } }),
-      (await request(app()).get(`/api/v1/deliveries/${(await prisma.delivery.findFirstOrThrow({ where: { workspaceId: biz.workspace.id } })).id.replace(/^/, 'dlv_')}`).set(auth(live.key))).body,
+      (
+        await request(app())
+          .get(
+            `/api/v1/deliveries/${(await prisma.delivery.findFirstOrThrow({ where: { workspaceId: biz.workspace.id } })).id.replace(/^/, 'dlv_')}`,
+          )
+          .set(auth(live.key))
+      ).body,
     ]);
     expect(everything).not.toContain(seenCode); // ...but it is stored nowhere
   });

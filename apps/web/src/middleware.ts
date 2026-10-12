@@ -44,8 +44,7 @@ export default auth((req) => {
 
   if (pathname.startsWith('/admin')) {
     if (!isAuthed) return NextResponse.redirect(new URL('/login', req.url));
-    if (!req.auth?.user.isPlatformAdmin)
-      return NextResponse.redirect(new URL('/console', req.url));
+    if (!req.auth?.user.isPlatformAdmin) return NextResponse.redirect(new URL('/console', req.url));
     return NextResponse.next();
   }
 

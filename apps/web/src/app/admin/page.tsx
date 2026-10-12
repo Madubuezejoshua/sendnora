@@ -53,7 +53,9 @@ export default async function AdminOverviewPage() {
           Activated businesses
         </h2>
         {data.entitlements.length === 0 ? (
-          <p className="text-muted-foreground mt-3 text-sm">None. Billing may be off, in which case no activation is needed.</p>
+          <p className="text-muted-foreground mt-3 text-sm">
+            None. Billing may be off, in which case no activation is needed.
+          </p>
         ) : (
           <ul className="mt-3 space-y-1 text-sm">
             {data.entitlements.map((e) => (

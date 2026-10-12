@@ -47,11 +47,22 @@ export async function sendnaro<T = Record<string, unknown>>(
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const json = (await res.json().catch(() => ({}))) as T & {
-    error?: { code: string; message: string; request_id?: string; fields?: Record<string, string[]> };
+    error?: {
+      code: string;
+      message: string;
+      request_id?: string;
+      fields?: Record<string, string[]>;
+    };
   };
   if (!res.ok) {
     const e = json.error;
-    throw new SendnaroError(res.status, e?.code ?? 'unknown_error', e?.message ?? res.statusText, e?.request_id, e?.fields);
+    throw new SendnaroError(
+      res.status,
+      e?.code ?? 'unknown_error',
+      e?.message ?? res.statusText,
+      e?.request_id,
+      e?.fields,
+    );
   }
   return { status: res.status, body: json };
 }

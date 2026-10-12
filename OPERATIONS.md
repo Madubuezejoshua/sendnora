@@ -1,88 +1,30 @@
 # Operations
 
-## Health & readiness
+## Health and readiness
 
-- `GET /health` — liveness only, no dependency checks. Never returns
-  non-200 while the process is up.
-- `GET /ready` — checks database connectivity (`SELECT 1`). Use this for
-  load-balancer/deploy-gate health checks, not `/health`.
+`GET /health` (liveness) and `GET /ready` (database reachable). Structured JSON logs carry `request_id` (also returned as `X-Request-Id`);
+Authorization headers are redacted and OTP codes never exist in logs.
 
-## Logs
+## Workers and schedules
 
-Structured JSON logs via Pino (`apps/api/src/config/logger.ts`), pretty-
-printed in development. Every request gets an `x-request-id` (propagated
-from the client if provided, otherwise generated), echoed back in the
-response header and in every error body — use it to correlate a user's
-bug report with server logs.
+- Process: in the API (`WORKER_INLINE=true`), stand-alone (`npm run worker` / `worker:start`), or `GET|POST /api/v1/cron/outbox` with
+  `Authorization: Bearer $CRON_SECRET`. Run several workers if you like; jobs are claimed with `SKIP LOCKED`.
+- Retention: `/api/v1/cron/maintenance` (also every six hours in the stand-alone worker) deletes expired rate-limit buckets, idempotency
+  records, finished jobs, link tokens, OTP metadata, sandbox data and files, old live deliveries and webhook events.
+- Legacy sweeps (`overdue-sweep`, `recurring-invoices`, `reminders`) concern the previous invoicing features.
 
-Sensitive fields (passwords, tokens, API keys, authorization headers, card
-data) are redacted unconditionally, in every environment — see SECURITY.md.
+## What to watch
 
-## Scheduled jobs (cron)
+- **Stuck work:** admin overview shows "Stuck jobs (dead)"; `OutboxEvent.status = 'DEAD'` rows have `lastError`. A job is retried 12 times with backoff first.
+- **Deliveries stuck `processing`/`retrying`:** a crashed worker leaves an unfinished attempt; the next run marks it ambiguous and waits for a receipt
+  (grace 10 minutes) instead of resending. This is intentional.
+- **WhatsApp connection `ERROR`:** credentials were rejected (expired token). The business must update them in Settings, Channels.
+- **Failed webhooks:** console, Settings, Webhooks shows recent attempts; after 8 attempts the callback is marked failed (the customer message is unaffected).
+- **Billing:** every setting change and access change is in the admin audit history. A mismatch or forged payment is recorded as `billing.payment_mismatch`.
 
-Three endpoints, protected by `CRON_SECRET` (bearer token, not a user
-session — see `apps/api/src/middleware/cron-auth.ts`). All are safe to
-call more often than necessary; each is idempotent.
+## Common procedures
 
-| Endpoint                               | What it does                                                                                                                 | Suggested frequency |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------- |
-| `POST /api/v1/cron/overdue-sweep`      | Transitions past-due open invoices to `OVERDUE`                                                                              | Hourly              |
-| `POST /api/v1/cron/recurring-invoices` | Generates invoices for due `RecurringInvoice` rows, advances `nextRunAt`                                                     | Hourly              |
-| `POST /api/v1/cron/reminders`          | Sends due `ReminderSchedule` rows (email auto-sends; WhatsApp without Meta credentials creates a staff notification instead) | Hourly              |
-
-Failures are recorded per-row (`RecurringInvoice.lastRunError`,
-`ReminderSchedule.failureReason`) rather than thrown, so one bad row never
-blocks the batch — check the admin panel's failed-jobs view.
-
-## Admin panel operational views
-
-Behind `PLATFORM_ADMIN` (see ARCHITECTURE.md § RBAC):
-
-- `/admin/stats` — user/workspace/invoice counts, plan distribution.
-- `/admin/webhook-events` — every processed/failed/ignored payment
-  webhook, filterable by provider/status. Check this first when a
-  merchant reports "I paid but the invoice still shows unpaid."
-- `/admin/failed-jobs` — recurring invoices whose last generation attempt
-  errored.
-- `/admin/email-logs` — every `MessageDelivery` row (sent/failed, provider
-  message id).
-- `/admin/audit-logs` — every recorded `AuditLog` entry (invoice issued,
-  payment recorded, ownership transferred, admin overrides, etc).
-- `/admin/system-health` — live storage/email/WhatsApp provider
-  configuration and DB connectivity, plus aggregate file-storage usage.
-
-## Database connection management
-
-Prisma's connection pool is process-local; `packages/database/src/index.ts`
-stashes a single `PrismaClient` on `globalThis` in development to survive
-hot-reload without opening a new pool per reload. In production (Railway),
-each container instance gets one pool — if you scale horizontally, ensure
-Neon's own connection limits/pooling (`DATABASE_URL`'s pooled endpoint) can
-handle `instances × pool_size` connections.
-
-## Rate limits
-
-Configured in `apps/api/src/middleware/rate-limit.ts`:
-
-- General API traffic: 300 req/min per IP.
-- Public document views (`/public/*`): 120 req/min per IP.
-- Payment webhooks: 240 req/min per IP (generous — providers retry).
-- Contact form: 5 req/min per IP.
-
-## Graceful shutdown
-
-`apps/api/src/index.ts` handles `SIGTERM`/`SIGINT`: stops accepting new
-connections, waits for in-flight requests, disconnects Prisma, and
-force-exits after a 10-second timeout if something hangs. Railway sends
-`SIGTERM` on redeploy/scale-down — this is what prevents mid-request
-connection drops during a deploy.
-
-## Incident response quick reference
-
-1. Check `/ready` — is the database reachable?
-2. Check `/admin/system-health` — which providers are configured, are they
-   healthy?
-3. Check `/admin/webhook-events` for payment issues specifically.
-4. Check Railway/Vercel deployment logs for the actual stack trace (never
-   exposed to API clients — see error-handler.ts).
-5. Every error response includes a `requestId` — grep logs for it.
+- Suspend a business: Admin, Billing and access, Businesses, Suspend (blocks API and queued jobs in both environments).
+- Replay nothing manually: do not insert outbox rows or edit delivery statuses by hand; use the API or let the worker finish.
+- Neon cold starts can fail the first request after idle; connection strings use `connect_timeout=30`. Retry once.
+- Backups: see [BACKUP_AND_RESTORE.md](BACKUP_AND_RESTORE.md). Take a branch before migrations.

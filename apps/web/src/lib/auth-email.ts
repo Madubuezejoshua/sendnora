@@ -21,7 +21,8 @@ export async function sendAuthEmail(
   html: string,
   text: string,
 ): Promise<void> {
-  const provider = process.env.EMAIL_PROVIDER ?? (process.env.NODE_ENV === 'production' ? '' : 'dev');
+  const provider =
+    process.env.EMAIL_PROVIDER ?? (process.env.NODE_ENV === 'production' ? '' : 'dev');
 
   if (provider === 'resend' && process.env.RESEND_API_KEY && process.env.EMAIL_FROM) {
     const resend = new Resend(process.env.RESEND_API_KEY);
@@ -41,7 +42,9 @@ export async function sendAuthEmail(
   // Never print verification/reset links into production logs, and never pretend an email was sent.
   // The file sink below is opt-in: EMAIL_PROVIDER=dev (local development, tests).
   if (process.env.NODE_ENV === 'production' && provider !== 'dev') {
-    throw new Error('EMAIL_PROVIDER=resend with RESEND_API_KEY and EMAIL_FROM is required to send email in production');
+    throw new Error(
+      'EMAIL_PROVIDER=resend with RESEND_API_KEY and EMAIL_FROM is required to send email in production',
+    );
   }
 
   // Development / test email sink: capture the message as a file (apps/web/.dev-emails, gitignored)
@@ -49,7 +52,11 @@ export async function sendAuthEmail(
   const dir = path.resolve(process.cwd(), '.dev-emails');
   await mkdir(dir, { recursive: true });
   const safe = to.replace(/[^a-zA-Z0-9@._-]/g, '_');
-  await writeFile(path.join(dir, `${Date.now()}-${safe}.txt`), `To: ${to}\nSubject: ${subject}\n\n${text}\n`, 'utf8');
+  await writeFile(
+    path.join(dir, `${Date.now()}-${safe}.txt`),
+    `To: ${to}\nSubject: ${subject}\n\n${text}\n`,
+    'utf8',
+  );
 }
 
 function wrap(bodyHtml: string): string {

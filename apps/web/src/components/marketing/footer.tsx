@@ -20,7 +20,11 @@ export function MarketingFooter() {
         </div>
         <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
           {LINKS.map((l) => (
-            <Link key={l.href} href={l.href} className="text-muted-foreground hover:text-foreground">
+            <Link
+              key={l.href}
+              href={l.href}
+              className="text-muted-foreground hover:text-foreground"
+            >
               {l.label}
             </Link>
           ))}
@@ -28,8 +32,9 @@ export function MarketingFooter() {
       </div>
       <div className="border-border border-t">
         <p className="text-muted-foreground mx-auto max-w-6xl px-4 py-4 text-xs sm:px-6">
-          &copy; {new Date().getFullYear()} {BRAND.productName}. WhatsApp is a trademark of Meta Platforms, Inc.; Telegram is a trademark of
-          Telegram FZ-LLC. {BRAND.productName} is not affiliated with or endorsed by either company.
+          &copy; {new Date().getFullYear()} {BRAND.productName}. WhatsApp is a trademark of Meta
+          Platforms, Inc.; Telegram is a trademark of Telegram FZ-LLC. {BRAND.productName} is not
+          affiliated with or endorsed by either company.
         </p>
       </div>
     </footer>

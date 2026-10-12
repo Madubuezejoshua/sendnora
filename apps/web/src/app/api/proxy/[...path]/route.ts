@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isCrossSiteWrite } from '@/lib/same-origin';
 import { mintApiToken } from '@/lib/api-client';
 import { getWebEnv } from '@/lib/env';
 
@@ -11,6 +12,12 @@ import { getWebEnv } from '@/lib/env';
  * cookie, and forwards the request to the real API. See ARCHITECTURE.md.
  */
 async function forward(req: NextRequest, path: string[]): Promise<NextResponse> {
+  if (isCrossSiteWrite(req)) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: 'Cross-site request blocked' } },
+      { status: 403 },
+    );
+  }
   const token = await mintApiToken();
   if (!token) {
     return NextResponse.json(

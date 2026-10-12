@@ -8,10 +8,22 @@ import { RateLimitedError } from '../limits.js';
  * v1 error contract: { error: { code, message, request_id, fields? } }. `code` is a stable,
  * machine-readable snake_case identifier; `message` is safe to show; internals are never exposed.
  */
-export function v1ErrorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
+export function v1ErrorHandler(
+  err: unknown,
+  req: Request,
+  res: Response,
+  _next: NextFunction,
+): void {
   const request_id = String(req.id ?? '');
-  const send = (status: number, code: string, message: string, fields?: Record<string, string[]>) => {
-    res.status(status).json({ error: { code, message, request_id, ...(fields ? { fields } : {}) } });
+  const send = (
+    status: number,
+    code: string,
+    message: string,
+    fields?: Record<string, string[]>,
+  ) => {
+    res
+      .status(status)
+      .json({ error: { code, message, request_id, ...(fields ? { fields } : {}) } });
   };
 
   if (err instanceof RateLimitedError) {
@@ -31,8 +43,10 @@ export function v1ErrorHandler(err: unknown, req: Request, res: Response, _next:
     return send(400, 'validation_error', 'The request body is invalid', fields);
   }
   const e = err as { type?: string; status?: number };
-  if (e?.type === 'entity.parse.failed') return send(400, 'invalid_json', 'The request body is not valid JSON');
-  if (e?.type === 'entity.too.large') return send(413, 'payload_too_large', 'The request body is too large');
+  if (e?.type === 'entity.parse.failed')
+    return send(400, 'invalid_json', 'The request body is not valid JSON');
+  if (e?.type === 'entity.too.large')
+    return send(413, 'payload_too_large', 'The request body is too large');
 
   logger.error({ err, request_id }, 'v1 unexpected error');
   return send(500, 'internal_error', 'An unexpected error occurred');
@@ -40,6 +54,10 @@ export function v1ErrorHandler(err: unknown, req: Request, res: Response, _next:
 
 export function v1NotFound(req: Request, res: Response): void {
   res.status(404).json({
-    error: { code: 'not_found', message: `No route for ${req.method} ${req.path}`, request_id: String(req.id ?? '') },
+    error: {
+      code: 'not_found',
+      message: `No route for ${req.method} ${req.path}`,
+      request_id: String(req.id ?? ''),
+    },
   });
 }

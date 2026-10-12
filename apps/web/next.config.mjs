@@ -24,17 +24,13 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   // packages/shared and packages/ui are consumed as raw TypeScript source
   // (no build step) — Next.js needs to know to transpile them itself.
-  transpilePackages: [
-    '@sendnaro/shared',
-    '@sendnaro/ui',
-    '@sendnaro/database',
-    '@sendnaro/config',
-  ],
+  transpilePackages: ['@sendnaro/shared', '@sendnaro/ui', '@sendnaro/database', '@sendnaro/config'],
   reactStrictMode: true,
   // One public origin: https://<domain>/api/v1/* is served by apps/api, so merchants, Meta, Telegram and
   // the payment gateway all use the same base URL. (Session/console traffic goes through /api/proxy.)
   async rewrites() {
-    const api = process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+    const api =
+      process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
     return [{ source: '/api/v1/:path*', destination: `${api}/api/v1/:path*` }];
   },
   images: {

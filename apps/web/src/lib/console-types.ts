@@ -16,7 +16,10 @@ export interface DeliveryRow {
   deliveredAt: string | null;
 }
 
-export const STATUS_VARIANT: Record<string, 'success' | 'warning' | 'destructive' | 'default' | 'outline'> = {
+export const STATUS_VARIANT: Record<
+  string,
+  'success' | 'warning' | 'destructive' | 'default' | 'outline'
+> = {
   delivered: 'success',
   read: 'success',
   sent: 'success',

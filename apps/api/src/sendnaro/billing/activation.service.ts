@@ -13,7 +13,10 @@ const QUOTE_TTL_MS = 24 * 3600_000;
  * A test-mode (sandbox) gateway payment can never unlock PRODUCTION; outside production (dev/CI)
  * test-mode payments are accepted so the full flow can be exercised.
  */
-export function paymentGrantsAccess(livemode: boolean, nodeEnv: string = parseApiEnv().NODE_ENV): boolean {
+export function paymentGrantsAccess(
+  livemode: boolean,
+  nodeEnv: string = parseApiEnv().NODE_ENV,
+): boolean {
   return livemode || nodeEnv !== 'production';
 }
 
@@ -29,7 +32,10 @@ export async function getActivationState(workspaceId: string) {
     billingRequired: settings.billingRequired,
     entitled,
     entitlementSource: entitled ? entitlement!.source : null,
-    price: settings.activationPriceMinor === null ? null : { amountMinor: settings.activationPriceMinor, currency: settings.activationCurrency },
+    price:
+      settings.activationPriceMinor === null
+        ? null
+        : { amountMinor: settings.activationPriceMinor, currency: settings.activationCurrency },
     hasPendingPayment: Boolean(pending),
     // Plain-language state for the console banner.
     state: !settings.billingRequired ? 'free_access' : entitled ? 'active' : 'activation_required',
@@ -43,7 +49,10 @@ export async function getActivationState(workspaceId: string) {
 export async function startActivationCheckout(workspaceId: string, userEmail: string) {
   const settings = await getBillingSettings();
   if (!settings.billingRequired) {
-    throw new AppError('CONFLICT', 'Activation payments are not required right now; no checkout was started');
+    throw new AppError(
+      'CONFLICT',
+      'Activation payments are not required right now; no checkout was started',
+    );
   }
   if (await hasActiveEntitlement(workspaceId)) {
     throw new AppError('CONFLICT', 'This business is already activated');
@@ -52,7 +61,8 @@ export async function startActivationCheckout(workspaceId: string, userEmail: st
     throw new AppError('SERVICE_UNAVAILABLE', 'The activation price has not been configured');
   }
   const gateway = getActivationGateway();
-  if (!gateway.isConfigured()) throw new AppError('SERVICE_UNAVAILABLE', 'The payment gateway is not configured');
+  if (!gateway.isConfigured())
+    throw new AppError('SERVICE_UNAVAILABLE', 'The payment gateway is not configured');
 
   // Reuse a still-valid pending checkout instead of creating duplicates on repeated clicks.
   const existing = await prisma.activationPayment.findFirst({
@@ -60,14 +70,20 @@ export async function startActivationCheckout(workspaceId: string, userEmail: st
     include: { quote: true },
     orderBy: { createdAt: 'desc' },
   });
-  if (existing && existing.amountMinor === settings.activationPriceMinor && existing.currency === settings.activationCurrency) {
-    const { checkoutUrl } = await gateway.initialize({
-      reference: existing.reference,
-      amountMinor: existing.amountMinor,
-      currency: existing.currency,
-      email: userEmail,
-      callbackUrl: `${parseApiEnv().NEXT_PUBLIC_APP_URL}/console/activation`,
-    }).catch(() => ({ checkoutUrl: '' }));
+  if (
+    existing &&
+    existing.amountMinor === settings.activationPriceMinor &&
+    existing.currency === settings.activationCurrency
+  ) {
+    const { checkoutUrl } = await gateway
+      .initialize({
+        reference: existing.reference,
+        amountMinor: existing.amountMinor,
+        currency: existing.currency,
+        email: userEmail,
+        callbackUrl: `${parseApiEnv().NEXT_PUBLIC_APP_URL}/console/activation`,
+      })
+      .catch(() => ({ checkoutUrl: '' }));
     if (checkoutUrl) return { reference: existing.reference, checkoutUrl };
   }
 
@@ -112,14 +128,18 @@ export type ConfirmOutcome =
  * Safe to call concurrently and repeatedly: the PENDING -> SUCCEEDED flip is a single conditional
  * UPDATE, so exactly one caller grants and revenue can never be counted twice.
  */
-export async function confirmActivationPayment(reference: string, expectedWorkspaceId?: string): Promise<ConfirmOutcome> {
+export async function confirmActivationPayment(
+  reference: string,
+  expectedWorkspaceId?: string,
+): Promise<ConfirmOutcome> {
   const payment = await prisma.activationPayment.findUnique({ where: { reference } });
   if (!payment) return { result: 'rejected', reason: 'unknown_reference' }; // forged / foreign reference
   if (expectedWorkspaceId && payment.workspaceId !== expectedWorkspaceId) {
     return { result: 'rejected', reason: 'unknown_reference' }; // never reveal other tenants' references
   }
   if (payment.status === 'SUCCEEDED') return { result: 'already_processed', payment };
-  if (payment.status !== 'PENDING') return { result: 'rejected', reason: `payment_${payment.status.toLowerCase()}` };
+  if (payment.status !== 'PENDING')
+    return { result: 'rejected', reason: `payment_${payment.status.toLowerCase()}` };
 
   const verified = await getActivationGateway().verify(reference);
   if (verified.status === 'pending') return { result: 'pending', reason: 'gateway_pending' };
@@ -132,8 +152,15 @@ export async function confirmActivationPayment(reference: string, expectedWorksp
   }
 
   // Amount, currency and mode must match what was quoted and recorded for THIS business.
-  if (verified.amountMinor !== payment.amountMinor || verified.currency !== payment.currency || verified.livemode !== payment.livemode) {
-    await prisma.activationPayment.updateMany({ where: { id: payment.id, status: 'PENDING' }, data: { status: 'FAILED' } });
+  if (
+    verified.amountMinor !== payment.amountMinor ||
+    verified.currency !== payment.currency ||
+    verified.livemode !== payment.livemode
+  ) {
+    await prisma.activationPayment.updateMany({
+      where: { id: payment.id, status: 'PENDING' },
+      data: { status: 'FAILED' },
+    });
     await writeAuditLog({
       workspaceId: payment.workspaceId,
       action: 'billing.payment_mismatch',
@@ -147,14 +174,28 @@ export async function confirmActivationPayment(reference: string, expectedWorksp
   const granted = await prisma.$transaction(async (tx) => {
     const flipped = await tx.activationPayment.updateMany({
       where: { id: payment.id, status: 'PENDING' },
-      data: { status: 'SUCCEEDED', verifiedAt: new Date(), providerTransactionId: verified.transactionId },
+      data: {
+        status: 'SUCCEEDED',
+        verifiedAt: new Date(),
+        providerTransactionId: verified.transactionId,
+      },
     });
     if (flipped.count === 0) return false; // another caller won the race
     if (paymentGrantsAccess(payment.livemode)) {
       await tx.entitlement.upsert({
         where: { workspaceId: payment.workspaceId },
-        create: { workspaceId: payment.workspaceId, source: 'PAYMENT', activationPaymentId: payment.id },
-        update: { source: 'PAYMENT', activationPaymentId: payment.id, revokedAt: null, revokedReason: null, grantedAt: new Date() },
+        create: {
+          workspaceId: payment.workspaceId,
+          source: 'PAYMENT',
+          activationPaymentId: payment.id,
+        },
+        update: {
+          source: 'PAYMENT',
+          activationPaymentId: payment.id,
+          revokedAt: null,
+          revokedReason: null,
+          grantedAt: new Date(),
+        },
       });
     }
     return true;
@@ -164,7 +205,9 @@ export async function confirmActivationPayment(reference: string, expectedWorksp
   if (granted) {
     await writeAuditLog({
       workspaceId: payment.workspaceId,
-      action: paymentGrantsAccess(payment.livemode) ? 'billing.entitlement_granted' : 'billing.test_payment_recorded',
+      action: paymentGrantsAccess(payment.livemode)
+        ? 'billing.entitlement_granted'
+        : 'billing.test_payment_recorded',
       entityType: 'ActivationPayment',
       entityId: payment.id,
       metadata: { livemode: payment.livemode },
@@ -182,17 +225,29 @@ export async function applyPaymentReversal(
 ): Promise<boolean> {
   const payment = await prisma.activationPayment.findUnique({ where: { reference } });
   if (!payment || payment.status === 'PENDING') return false;
-  const refunded = kind === 'refund' ? Math.min(payment.amountMinor, (payment.refundedAmountMinor || 0) + (refundedMinor ?? payment.amountMinor)) : payment.refundedAmountMinor;
+  const refunded =
+    kind === 'refund'
+      ? Math.min(
+          payment.amountMinor,
+          (payment.refundedAmountMinor || 0) + (refundedMinor ?? payment.amountMinor),
+        )
+      : payment.refundedAmountMinor;
   const full = kind === 'dispute' || refunded >= payment.amountMinor;
   await prisma.$transaction(async (tx) => {
     await tx.activationPayment.update({
       where: { id: payment.id },
-      data: { status: kind === 'dispute' ? 'DISPUTED' : full ? 'REFUNDED' : payment.status, refundedAmountMinor: refunded },
+      data: {
+        status: kind === 'dispute' ? 'DISPUTED' : full ? 'REFUNDED' : payment.status,
+        refundedAmountMinor: refunded,
+      },
     });
     if (full) {
       await tx.entitlement.updateMany({
         where: { activationPaymentId: payment.id, revokedAt: null },
-        data: { revokedAt: new Date(), revokedReason: kind === 'dispute' ? 'payment_disputed' : 'payment_refunded' },
+        data: {
+          revokedAt: new Date(),
+          revokedReason: kind === 'dispute' ? 'payment_disputed' : 'payment_refunded',
+        },
       });
     }
   });
@@ -207,7 +262,9 @@ export async function applyPaymentReversal(
 }
 
 /** Revenue = verified, live-mode payments minus refunds, per currency. Disputed payments count as zero. */
-export async function computeActivationRevenue(): Promise<{ currency: string; collectedMinor: number; payments: number }[]> {
+export async function computeActivationRevenue(): Promise<
+  { currency: string; collectedMinor: number; payments: number }[]
+> {
   const rows = await prisma.activationPayment.findMany({
     where: { livemode: true, status: { in: ['SUCCEEDED', 'REFUNDED'] } },
     select: { currency: true, amountMinor: true, refundedAmountMinor: true, status: true },

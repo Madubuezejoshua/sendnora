@@ -42,7 +42,9 @@ describe('authentication', () => {
   it('accepts a valid token and grants workspace context', async () => {
     const app = buildTestApp();
     const { token } = await setupWorkspaceContext();
-    const res = await request(app).get('/api/legacy/v1/customers').set('Authorization', `Bearer ${token}`);
+    const res = await request(app)
+      .get('/api/legacy/v1/customers')
+      .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
   });
 

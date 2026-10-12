@@ -101,7 +101,10 @@ describe('payment webhook idempotency', () => {
     } as never);
 
     const eventId = Date.now();
-    const payload = { event: 'charge.success', data: { id: eventId, reference: attempt.reference } };
+    const payload = {
+      event: 'charge.success',
+      data: { id: eventId, reference: attempt.reference },
+    };
 
     await handleWebhookEvent('PAYSTACK', payload);
     await handleWebhookEvent('PAYSTACK', payload); // duplicate delivery

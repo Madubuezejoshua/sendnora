@@ -12,4 +12,8 @@ try {
 
 // Tests may use a local HTTP receiver for sandbox webhook endpoints (never allowed in production).
 process.env.ALLOW_LOCAL_WEBHOOK_TARGETS = 'true';
-process.env.NODE_ENV = process.env.NODE_ENV === 'production' ? 'test' : (process.env.NODE_ENV ?? 'test');
+process.env.NODE_ENV =
+  process.env.NODE_ENV === 'production' ? 'test' : (process.env.NODE_ENV ?? 'test');
+
+// Keep test output readable: request logs are noise unless something is wrong.
+process.env.LOG_LEVEL ??= 'error';

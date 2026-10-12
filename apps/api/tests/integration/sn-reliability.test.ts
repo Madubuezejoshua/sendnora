@@ -3,12 +3,29 @@ import request from 'supertest';
 import { createHmac } from 'node:crypto';
 import { prisma } from '@sendnaro/database';
 import { encryptSecret } from '@sendnaro/database/encryption';
-import { app, auth, addWebhookEndpoint, drain, invoiceBody, makeBusiness, makeKey, startReceiver } from './sn-helpers.js';
-import { applyProviderReceipt, deliveryPolicy, processDelivery } from '../../src/sendnaro/delivery/engine.js';
+import {
+  app,
+  auth,
+  addWebhookEndpoint,
+  drain,
+  invoiceBody,
+  makeBusiness,
+  makeKey,
+  startReceiver,
+} from './sn-helpers.js';
+import {
+  applyProviderReceipt,
+  deliveryPolicy,
+  processDelivery,
+} from '../../src/sendnaro/delivery/engine.js';
 import { claimBatch, drainOutbox } from '../../src/sendnaro/outbox.js';
 import { signPayload, verifySignature } from '../../src/sendnaro/webhooks/signing.js';
 import { webhookRetryPolicy } from '../../src/sendnaro/webhooks/dispatch.js';
-import { assertWebhookUrl, isBlockedAddress, safeRequest } from '../../src/sendnaro/webhooks/ssrf.js';
+import {
+  assertWebhookUrl,
+  isBlockedAddress,
+  safeRequest,
+} from '../../src/sendnaro/webhooks/ssrf.js';
 import { setLiveProviderOverride } from '../../src/sendnaro/delivery/provider.js';
 import { verifyMetaSignature } from '../../src/sendnaro/delivery/provider-webhooks.routes.js';
 import { getTestEnv } from './setup.js';
@@ -28,19 +45,26 @@ async function sandbox() {
 }
 
 async function notify(key: string, scenario: string) {
-  const res = await request(app()).post('/api/v1/notifications').set(auth(key)).send({
-    type: 'order_confirmation',
-    customer: { external_customer_id: 'c1', name: 'Ada', whatsapp_phone: '+2348012345678' },
-    channels: ['whatsapp'],
-    fields: { order_reference: 'A-100' },
-    consent: { whatsapp_transactional: true },
-    scenario,
-  });
+  const res = await request(app())
+    .post('/api/v1/notifications')
+    .set(auth(key))
+    .send({
+      type: 'order_confirmation',
+      customer: { external_customer_id: 'c1', name: 'Ada', whatsapp_phone: '+2348012345678' },
+      channels: ['whatsapp'],
+      fields: { order_reference: 'A-100' },
+      consent: { whatsapp_transactional: true },
+      scenario,
+    });
   expect(res.status).toBe(202);
   return String(res.body.deliveries[0].id).replace('dlv_', '');
 }
 
-const row = (id: string) => prisma.delivery.findUniqueOrThrow({ where: { id }, include: { attempts: { orderBy: { attemptNo: 'asc' } } } });
+const row = (id: string) =>
+  prisma.delivery.findUniqueOrThrow({
+    where: { id },
+    include: { attempts: { orderBy: { attemptNo: 'asc' } } },
+  });
 
 describe('delivery reliability (sandbox scenarios)', () => {
   it('temporary failure: bounded retries then success', async () => {
@@ -50,7 +74,11 @@ describe('delivery reliability (sandbox scenarios)', () => {
     await drain(workspace.id, 10);
     const d = await row(id);
     expect(d.status).toBe('SANDBOX_SIMULATED');
-    expect(d.attempts.map((a) => a.outcome)).toEqual(['transient_failure', 'transient_failure', 'accepted']);
+    expect(d.attempts.map((a) => a.outcome)).toEqual([
+      'transient_failure',
+      'transient_failure',
+      'accepted',
+    ]);
   });
 
   it('gives up after the attempt cap on a persistently failing provider', async () => {
@@ -58,16 +86,31 @@ describe('delivery reliability (sandbox scenarios)', () => {
     deliveryPolicy.maxAttempts = 3;
     const biz = await makeBusiness();
     const live = await makeKey(biz.workspace.id, biz.user.id, 'LIVE');
-    await prisma.channelConnection.create({ data: { workspaceId: biz.workspace.id, environment: 'LIVE', channel: 'WHATSAPP', status: 'CONNECTED', config: {}, secretCiphertext: encryptSecret('{}', getTestEnv().APP_ENCRYPTION_KEY) } });
+    await prisma.channelConnection.create({
+      data: {
+        workspaceId: biz.workspace.id,
+        environment: 'LIVE',
+        channel: 'WHATSAPP',
+        status: 'CONNECTED',
+        config: {},
+        secretCiphertext: encryptSecret('{}', getTestEnv().APP_ENCRYPTION_KEY),
+      },
+    });
     let calls = 0;
     setLiveProviderOverride(() => {
       calls += 1;
       return { kind: 'transient', code: 'provider_unavailable', message: 'down' };
     });
-    const res = await request(app()).post('/api/v1/notifications').set(auth(live.key)).send({
-      type: 'order_confirmation', customer: { external_customer_id: 'c1', name: 'Ada', whatsapp_phone: '+2348012345678' },
-      channels: ['whatsapp'], fields: {}, consent: { whatsapp_transactional: true },
-    });
+    const res = await request(app())
+      .post('/api/v1/notifications')
+      .set(auth(live.key))
+      .send({
+        type: 'order_confirmation',
+        customer: { external_customer_id: 'c1', name: 'Ada', whatsapp_phone: '+2348012345678' },
+        channels: ['whatsapp'],
+        fields: {},
+        consent: { whatsapp_transactional: true },
+      });
     await drain(biz.workspace.id, 10);
     const d = await row(String(res.body.deliveries[0].id).replace('dlv_', ''));
     expect(d.status).toBe('FAILED');
@@ -82,9 +125,15 @@ describe('delivery reliability (sandbox scenarios)', () => {
       expect(d.status).toBe('QUEUED');
     }
     await drain(workspace.id);
-    const all = await prisma.delivery.findMany({ where: { workspaceId: workspace.id }, include: { attempts: true } });
+    const all = await prisma.delivery.findMany({
+      where: { workspaceId: workspace.id },
+      include: { attempts: true },
+    });
     expect(all.every((d) => d.status === 'FAILED' && d.attempts.length === 1)).toBe(true);
-    expect(all.map((d) => d.lastErrorCode).sort()).toEqual(['invalid_recipient', 'provider_rejected']);
+    expect(all.map((d) => d.lastErrorCode).sort()).toEqual([
+      'invalid_recipient',
+      'provider_rejected',
+    ]);
   });
 
   it('throttling is honoured (waits, then succeeds)', async () => {
@@ -105,8 +154,16 @@ describe('delivery reliability (sandbox scenarios)', () => {
     await drain(workspace.id, 8);
     const d = await row(id);
     expect(d.status).toBe('DELIVERED');
-    expect(await prisma.merchantWebhookEvent.count({ where: { workspaceId: workspace.id, type: 'delivery.delivered' } })).toBe(1);
-    expect(await prisma.providerStatusEvent.count({ where: { externalId: `sim_${id}`, status: 'delivered' } })).toBe(1);
+    expect(
+      await prisma.merchantWebhookEvent.count({
+        where: { workspaceId: workspace.id, type: 'delivery.delivered' },
+      }),
+    ).toBe(1);
+    expect(
+      await prisma.providerStatusEvent.count({
+        where: { externalId: `sim_${id}`, status: 'delivered' },
+      }),
+    ).toBe(1);
     await receiver.close();
   });
 
@@ -138,7 +195,10 @@ describe('delivery reliability (sandbox scenarios)', () => {
     const claimed = await claimBatch('dead-worker', 10, workspace.id);
     expect(claimed.length).toBeGreaterThan(0);
     expect((await drainOutbox({ workspaceId: workspace.id })).processed).toBe(0); // still locked: nobody double-processes
-    await prisma.outboxEvent.updateMany({ where: { workspaceId: workspace.id, status: 'PROCESSING' }, data: { lockedAt: new Date(Date.now() - 10 * 60_000) } });
+    await prisma.outboxEvent.updateMany({
+      where: { workspaceId: workspace.id, status: 'PROCESSING' },
+      data: { lockedAt: new Date(Date.now() - 10 * 60_000) },
+    });
     await drain(workspace.id);
     expect((await row(id)).status).toBe('SANDBOX_SIMULATED');
   });
@@ -146,8 +206,13 @@ describe('delivery reliability (sandbox scenarios)', () => {
   it('a crash AFTER the provider call started never causes a second send', async () => {
     const { key, workspace } = await sandbox();
     const id = await notify(key, 'success');
-    await prisma.delivery.update({ where: { id }, data: { status: 'PROCESSING', attemptCount: 1 } });
-    await prisma.deliveryAttempt.create({ data: { deliveryId: id, attemptNo: 1, outcome: 'started' } }); // unfinished attempt
+    await prisma.delivery.update({
+      where: { id },
+      data: { status: 'PROCESSING', attemptCount: 1 },
+    });
+    await prisma.deliveryAttempt.create({
+      data: { deliveryId: id, attemptNo: 1, outcome: 'started' },
+    }); // unfinished attempt
     await processDelivery(id);
     const d = await row(id);
     expect(d.attempts).toHaveLength(1);
@@ -160,9 +225,19 @@ describe('delivery reliability (sandbox scenarios)', () => {
     const biz = await makeBusiness();
     const wamid = `wamid.${Math.random().toString(36).slice(2)}`;
     const d = await prisma.delivery.create({
-      data: { workspaceId: biz.workspace.id, environment: 'LIVE', kind: 'NOTIFICATION', channel: 'WHATSAPP', status: 'PROVIDER_ACCEPTED', toAddress: '+2348012345678', templateKey: 'x', providerMessageId: wamid },
+      data: {
+        workspaceId: biz.workspace.id,
+        environment: 'LIVE',
+        kind: 'NOTIFICATION',
+        channel: 'WHATSAPP',
+        status: 'PROVIDER_ACCEPTED',
+        toAddress: '+2348012345678',
+        templateKey: 'x',
+        providerMessageId: wamid,
+      },
     });
-    const apply = (status: 'sent' | 'delivered' | 'read' | 'failed') => applyProviderReceipt({ provider: 'whatsapp:t', externalId: wamid, status });
+    const apply = (status: 'sent' | 'delivered' | 'read' | 'failed') =>
+      applyProviderReceipt({ provider: 'whatsapp:t', externalId: wamid, status });
     expect(await apply('read')).toBe(true);
     expect(await apply('delivered')).toBe(false); // late delivered after read is ignored
     expect(await apply('delivered')).toBe(false); // exact duplicate ignored
@@ -175,40 +250,101 @@ describe('delivery reliability (sandbox scenarios)', () => {
   it('WhatsApp status callbacks need a valid signature and cannot cross tenants', async () => {
     const mk = async () => {
       const biz = await makeBusiness();
-      const secrets = { accessToken: 'a'.repeat(30), appSecret: `secret-${Math.random().toString(36).slice(2)}-padding`, verifyToken: 'verify-token-123' };
+      const secrets = {
+        accessToken: 'a'.repeat(30),
+        appSecret: `secret-${Math.random().toString(36).slice(2)}-padding`,
+        verifyToken: 'verify-token-123',
+      };
       const conn = await prisma.channelConnection.create({
-        data: { workspaceId: biz.workspace.id, environment: 'LIVE', channel: 'WHATSAPP', status: 'CONNECTED', config: { phoneNumberId: `99${Math.floor(Math.random() * 1e8)}` }, secretCiphertext: encryptSecret(JSON.stringify(secrets), getTestEnv().APP_ENCRYPTION_KEY) },
+        data: {
+          workspaceId: biz.workspace.id,
+          environment: 'LIVE',
+          channel: 'WHATSAPP',
+          status: 'CONNECTED',
+          config: { phoneNumberId: `99${Math.floor(Math.random() * 1e8)}` },
+          secretCiphertext: encryptSecret(JSON.stringify(secrets), getTestEnv().APP_ENCRYPTION_KEY),
+        },
       });
       const d = await prisma.delivery.create({
-        data: { workspaceId: biz.workspace.id, environment: 'LIVE', kind: 'NOTIFICATION', channel: 'WHATSAPP', status: 'PROVIDER_ACCEPTED', toAddress: '+2348012345678', templateKey: 'x', providerMessageId: `wamid.${Math.random().toString(36).slice(2)}` },
+        data: {
+          workspaceId: biz.workspace.id,
+          environment: 'LIVE',
+          kind: 'NOTIFICATION',
+          channel: 'WHATSAPP',
+          status: 'PROVIDER_ACCEPTED',
+          toAddress: '+2348012345678',
+          templateKey: 'x',
+          providerMessageId: `wamid.${Math.random().toString(36).slice(2)}`,
+        },
       });
-      return { conn, secrets, d, phoneNumberId: (conn.config as { phoneNumberId: string }).phoneNumberId };
+      return {
+        conn,
+        secrets,
+        d,
+        phoneNumberId: (conn.config as { phoneNumberId: string }).phoneNumberId,
+      };
     };
     const a = await mk();
     const b = await mk();
-    const payload = (x: typeof a, status: string) => JSON.stringify({ entry: [{ changes: [{ value: { metadata: { phone_number_id: x.phoneNumberId }, statuses: [{ id: x.d.providerMessageId, status }] } }] }] });
-    const sign = (secret: string, body: string) => `sha256=${createHmac('sha256', secret).update(body).digest('hex')}`;
-    const post = (x: typeof a, body: string, sig: string) => request(app()).post(`/api/v1/webhooks/whatsapp/${x.conn.id}`).set('Content-Type', 'application/json').set('X-Hub-Signature-256', sig).send(body);
+    const payload = (x: typeof a, status: string) =>
+      JSON.stringify({
+        entry: [
+          {
+            changes: [
+              {
+                value: {
+                  metadata: { phone_number_id: x.phoneNumberId },
+                  statuses: [{ id: x.d.providerMessageId, status }],
+                },
+              },
+            ],
+          },
+        ],
+      });
+    const sign = (secret: string, body: string) =>
+      `sha256=${createHmac('sha256', secret).update(body).digest('hex')}`;
+    const post = (x: typeof a, body: string, sig: string) =>
+      request(app())
+        .post(`/api/v1/webhooks/whatsapp/${x.conn.id}`)
+        .set('Content-Type', 'application/json')
+        .set('X-Hub-Signature-256', sig)
+        .send(body);
 
     const body = payload(a, 'delivered');
     expect((await post(a, body, 'sha256=deadbeef')).status).toBe(401); // forged
     expect((await post(a, body, sign(b.secrets.appSecret, body))).status).toBe(401); // signed with ANOTHER business's secret
-    expect((await prisma.delivery.findUniqueOrThrow({ where: { id: a.d.id } })).status).toBe('PROVIDER_ACCEPTED');
+    expect((await prisma.delivery.findUniqueOrThrow({ where: { id: a.d.id } })).status).toBe(
+      'PROVIDER_ACCEPTED',
+    );
 
     expect((await post(a, body, sign(a.secrets.appSecret, body))).status).toBe(200);
-    expect((await prisma.delivery.findUniqueOrThrow({ where: { id: a.d.id } })).status).toBe('DELIVERED');
+    expect((await prisma.delivery.findUniqueOrThrow({ where: { id: a.d.id } })).status).toBe(
+      'DELIVERED',
+    );
 
     // A validly signed callback that names B's message through A's connection cannot touch B.
     const crossBody = payload({ ...a, d: b.d }, 'read');
     await post(a, crossBody, sign(a.secrets.appSecret, crossBody));
-    expect((await prisma.delivery.findUniqueOrThrow({ where: { id: b.d.id } })).status).toBe('PROVIDER_ACCEPTED');
+    expect((await prisma.delivery.findUniqueOrThrow({ where: { id: b.d.id } })).status).toBe(
+      'PROVIDER_ACCEPTED',
+    );
     expect(verifyMetaSignature('s', Buffer.from('x'), undefined)).toBe(false);
 
     // Meta's one-time handshake uses the business's own verify token.
-    const hs = await request(app()).get(`/api/v1/webhooks/whatsapp/${a.conn.id}`).query({ 'hub.mode': 'subscribe', 'hub.verify_token': a.secrets.verifyToken, 'hub.challenge': 'abc123' });
+    const hs = await request(app()).get(`/api/v1/webhooks/whatsapp/${a.conn.id}`).query({
+      'hub.mode': 'subscribe',
+      'hub.verify_token': a.secrets.verifyToken,
+      'hub.challenge': 'abc123',
+    });
     expect(hs.status).toBe(200);
     expect(hs.text).toBe('abc123');
-    expect((await request(app()).get(`/api/v1/webhooks/whatsapp/${a.conn.id}`).query({ 'hub.mode': 'subscribe', 'hub.verify_token': 'nope', 'hub.challenge': 'x' })).status).toBe(403);
+    expect(
+      (
+        await request(app())
+          .get(`/api/v1/webhooks/whatsapp/${a.conn.id}`)
+          .query({ 'hub.mode': 'subscribe', 'hub.verify_token': 'nope', 'hub.challenge': 'x' })
+      ).status,
+    ).toBe(403);
   });
 });
 
@@ -220,7 +356,8 @@ describe('sandbox process-queue helper', () => {
     const idA = await notify(a.key, 'temporary_failure');
     const idB = await notify(b.key, 'success');
 
-    const run = (key: string, body: object = {}) => request(app()).post('/api/v1/sandbox/process-queue').set(auth(key)).send(body);
+    const run = (key: string, body: object = {}) =>
+      request(app()).post('/api/v1/sandbox/process-queue').set(auth(key)).send(body);
     const first = await run(a.key);
     expect(first.status).toBe(200);
     expect((await row(idA)).status).toBe('RETRYING'); // retry is scheduled in the future
@@ -269,12 +406,20 @@ describe('outgoing merchant webhooks', () => {
     const { key, workspace } = await sandbox();
     const receiver = await startReceiver();
     await addWebhookEndpoint(workspace.id, 'SANDBOX', receiver.url);
-    const c = await request(app()).post('/api/v1/otp/challenges').set(auth(key)).send({ phone: '+2348012345678', purpose: 'login', customer_ref: 'u1' });
+    const c = await request(app())
+      .post('/api/v1/otp/challenges')
+      .set(auth(key))
+      .send({ phone: '+2348012345678', purpose: 'login', customer_ref: 'u1' });
     const inbox = await request(app()).get('/api/v1/sandbox/otp-inbox').set(auth(key));
     const code = inbox.body.messages[0].code as string;
-    await request(app()).post(`/api/v1/otp/challenges/${c.body.id}/verify`).set(auth(key)).send({ code, phone: '+2348012345678', purpose: 'login' });
+    await request(app())
+      .post(`/api/v1/otp/challenges/${c.body.id}/verify`)
+      .set(auth(key))
+      .send({ code, phone: '+2348012345678', purpose: 'login' });
     await drain(workspace.id, 6);
-    const verified = receiver.received.map((r) => JSON.parse(r.raw)).find((e) => e.type === 'otp.verified');
+    const verified = receiver.received
+      .map((r) => JSON.parse(r.raw))
+      .find((e) => e.type === 'otp.verified');
     expect(verified).toBeTruthy();
     expect(verified.data.outcome).toBe('verified');
     expect(JSON.stringify(verified)).not.toContain(code);
@@ -282,18 +427,44 @@ describe('outgoing merchant webhooks', () => {
   });
 
   it('blocks private networks, metadata endpoints, credentials in URLs and plain http for live endpoints (SSRF)', async () => {
-    for (const ip of ['127.0.0.1', '10.0.0.5', '172.16.9.9', '192.168.1.1', '169.254.169.254', '::1', '::ffff:127.0.0.1', '100.64.0.1', 'fc00::1', 'fe80::1']) {
+    for (const ip of [
+      '127.0.0.1',
+      '10.0.0.5',
+      '172.16.9.9',
+      '192.168.1.1',
+      '169.254.169.254',
+      '::1',
+      '::ffff:127.0.0.1',
+      '100.64.0.1',
+      'fc00::1',
+      'fe80::1',
+    ]) {
       expect(isBlockedAddress(ip, false), ip).toBe(true);
     }
     expect(isBlockedAddress('8.8.8.8', false)).toBe(false);
     expect(isBlockedAddress('127.0.0.1', true)).toBe(false); // sandbox + explicit dev flag only
     expect(isBlockedAddress('10.0.0.5', true)).toBe(true); // the dev flag never opens private ranges
-    for (const url of ['http://example.com/hook', 'https://127.0.0.1/hook', 'https://169.254.169.254/latest', 'https://user:pass@example.com/', 'ftp://example.com/', 'https://[::1]/']) {
+    for (const url of [
+      'http://example.com/hook',
+      'https://127.0.0.1/hook',
+      'https://169.254.169.254/latest',
+      'https://user:pass@example.com/',
+      'ftp://example.com/',
+      'https://[::1]/',
+    ]) {
       await expect(assertWebhookUrl(url, false), url).rejects.toThrow();
     }
     await expect(assertWebhookUrl('https://localhost/hook', false)).rejects.toThrow(); // hostname that resolves to loopback
     // Connect-time protection (DNS rebinding): even a vetted URL is re-checked when the socket opens.
-    await expect(safeRequest('https://localhost:9/x', { method: 'POST', headers: {}, body: '{}', timeoutMs: 2000, allowLocal: false })).rejects.toThrow(/blocked_address|ECONN|refused|blocked/);
+    await expect(
+      safeRequest('https://localhost:9/x', {
+        method: 'POST',
+        headers: {},
+        body: '{}',
+        timeoutMs: 2000,
+        allowLocal: false,
+      }),
+    ).rejects.toThrow(/blocked_address|ECONN|refused|blocked/);
   });
 
   it('does not follow redirects', async () => {
@@ -307,7 +478,13 @@ describe('outgoing merchant webhooks', () => {
     });
     await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
     const port = (server.address() as { port: number }).port;
-    const res = await safeRequest(`http://127.0.0.1:${port}/`, { method: 'POST', headers: {}, body: '{}', timeoutMs: 2000, allowLocal: true });
+    const res = await safeRequest(`http://127.0.0.1:${port}/`, {
+      method: 'POST',
+      headers: {},
+      body: '{}',
+      timeoutMs: 2000,
+      allowLocal: true,
+    });
     expect(res.status).toBe(302); // reported as-is, never followed
     expect(hits).toBe(1);
     await new Promise<void>((r) => server.close(() => r()));

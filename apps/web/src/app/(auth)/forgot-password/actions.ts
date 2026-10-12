@@ -27,7 +27,9 @@ export async function forgotPasswordAction(input: { email: string }): Promise<{ 
   const env = getWebEnv();
   const resetUrl = `${env.NEXT_PUBLIC_APP_URL}/reset-password?token=${rawToken}`;
   const content = resetPasswordContent(user.name ?? user.email, resetUrl);
-  await sendAuthEmail(user.email, content.subject, content.html, content.text).catch((err: Error) => console.error('Auth email was not sent:', err.message));
+  await sendAuthEmail(user.email, content.subject, content.html, content.text).catch((err: Error) =>
+    console.error('Auth email was not sent:', err.message),
+  );
 
   return { ok: true };
 }

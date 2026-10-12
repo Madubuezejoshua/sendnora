@@ -1,131 +1,49 @@
 # Deployment
 
-Target topology: **Vercel** (apps/web) + **Railway** (apps/api, Docker) +
-**Neon** (Postgres) + **Backblaze B2** (file storage) + **Resend** (email).
-No deployment has been performed by the build process that produced this
-repository — the steps below are what you (the owner) run.
+Sendnaro is two deployables plus PostgreSQL and private object storage. Nothing here has been deployed under the Sendnaro name
+or at `sendnaro.com`; the domain is only the intended production origin. Prior test deployments used older project names.
 
-## 1. Neon (database)
+## Topology options
 
-1. Create a project at [neon.tech](https://neon.tech).
-2. Copy the **pooled** connection string → `DATABASE_URL`.
-3. Copy the **unpooled** connection string (Neon calls this the "direct"
-   connection) → `DIRECT_DATABASE_URL`. Migrations require the unpooled
-   connection.
-4. Run migrations against it once, from your machine or CI:
-   ```bash
-   DATABASE_URL=... DIRECT_DATABASE_URL=... npm run db:migrate:deploy --workspace=@sendnaro/database
-   DATABASE_URL=... DIRECT_DATABASE_URL=... npm run db:seed --workspace=@sendnaro/database
-   ```
+1. **Vercel for both** (what the existing config targets): project `web` (root `apps/web`) and project `api` (root `apps/api`).
+   Each has its own `vercel.json`. Set the web app's `API_INTERNAL_URL` to the API project's URL; the web app rewrites `/api/v1/*` to it.
+2. **Vercel web + a container for the API** (`apps/api/Dockerfile`, e.g. Railway): set `WORKER_INLINE=true` (or run `npm run worker:start`
+   as a second service). Best latency, no cron dependency.
 
-## 2. Backblaze B2 (storage)
+Serverless caveats: the API has no always-on worker. Work is durable in the outbox and drained by `/api/v1/cron/outbox` and a
+post-response `waitUntil` drain. Vercel Hobby crons run at most daily, so for prompt retries and receipts use Vercel Pro
+(edit the schedule to `* * * * *`) or option 2.
 
-1. Create a bucket (private, not public).
-2. Create an Application Key scoped to that bucket → `B2_KEY_ID` /
-   `B2_APPLICATION_KEY`.
-3. Note the S3-compatible endpoint for your region → `B2_ENDPOINT`
-   (e.g. `https://s3.us-west-004.backblazeb2.com`).
-4. Set `STORAGE_PROVIDER=b2`, `B2_BUCKET_NAME`, `B2_REGION`.
+## Order of operations
 
-## 3. Resend (email)
+1. Create the database (Neon: pooled `DATABASE_URL` with `pgbouncer=true&connect_timeout=30`, unpooled `DIRECT_DATABASE_URL` with `connect_timeout=30`).
+2. Create a Backblaze B2 **private** bucket and an application key limited to it (`STORAGE_PROVIDER=b2`; production refuses local storage).
+3. Set environment variables on both projects (see [ENVIRONMENT.md](ENVIRONMENT.md)); production boot fails fast if `OTP_HMAC_KEY`,
+   storage or email configuration is missing.
+4. **Migrate before deploying code that needs it:** `npm run db:migrate:deploy --workspace=@sendnaro/database` (uses `DIRECT_DATABASE_URL`),
+   then `npm run db:seed --workspace=@sendnaro/database` (idempotent; inserts `billing_required=false` only if missing).
+5. Deploy `api`, then `web`. Smoke-check `/health`, `/ready`, `/api/v1/ping` with a key, and the sandbox playground.
+6. Register provider webhooks: Telegram (`setWebhook`, see [docs/CHANNELS.md](docs/CHANNELS.md)); each business registers its own Meta callback
+   (shown in the console); Paystack `<origin>/api/v1/webhooks/sendnaro-activation` only if billing will be used.
+7. Rehearse in sandbox, then connect a real WhatsApp sender with a designated test recipient before any customer traffic.
 
-1. Add and verify your sending domain at [resend.com](https://resend.com).
-2. Create an API key → `RESEND_API_KEY`.
-3. Set `EMAIL_PROVIDER=resend`, `EMAIL_FROM="Sendnaro <you@yourdomain>"`.
+## Migrations: order and rollback
 
-## 4. Railway (API)
+Migrations are additive (no drops): `20261008193047_init` (existing schema), `..._telegram_channel`, `..._sendnaro_core`, `..._delivery_api_key`,
+`..._allowed_link_origins`. Apply in order with `migrate deploy`; never edit an applied migration. Existing `ApiKey` rows become `LIVE` keys with
+no scopes (they cannot authenticate to v1). Rollback: take a Neon branch or `pg_dump` first (see [BACKUP_AND_RESTORE.md](BACKUP_AND_RESTORE.md));
+the old application keeps working on the new schema because nothing was removed, so rolling the **code** back needs no schema change. To revert the
+schema, restore the branch or drop the new tables/columns by a reviewed script; do not drop the legacy tables.
 
-1. New project → Deploy from GitHub repo → root directory `apps/api`
-   (Railway auto-detects `apps/api/railway.json`, which points at
-   `apps/api/Dockerfile`).
-2. Set every required variable from ENVIRONMENT.md as a Railway
-   environment variable (never commit them).
-3. Railway sets its own `PORT` — the API reads `API_PORT` for local dev,
-   but `src/index.ts` should be pointed at Railway's `PORT` in production;
-   the simplest fix is to also set `API_PORT=$PORT` in Railway's variable
-   editor (Railway supports variable references), or override with
-   `API_PORT` directly to Railway's assigned value.
-4. Confirm the healthcheck path `/health` (already configured in
-   `railway.json`) goes green.
-5. Set up the scheduled cron calls (Railway doesn't have built-in cron on
-   all plans — use Railway's Cron Jobs feature if available on your plan,
-   or an external scheduler like GitHub Actions `schedule:` hitting these
-   with the `CRON_SECRET` bearer token):
-   - `POST /api/v1/cron/overdue-sweep` — every hour
-   - `POST /api/v1/cron/recurring-invoices` — every hour
-   - `POST /api/v1/cron/reminders` — every hour
+## Vercel specifics
 
-## 5. Vercel (web)
+- `apps/api/vercel.json`: install with dev dependencies, build the workspace chain, rewrite all paths to the function, trace Prisma, PDF libraries and
+  the Noto fonts, and schedule daily crons (`outbox`, `maintenance`, and the legacy sweeps). Vercel sends `Authorization: Bearer $CRON_SECRET`.
+- `apps/web/vercel.json`: copies the Prisma engine into `apps/web/generated/client` (Prisma looks there at runtime) and builds `build:web`.
+- Prisma needs the `rhel-openssl-3.0.x` binary target (already in the schema).
+- A custom domain: add it to the web project, then set `NEXT_PUBLIC_APP_URL`, `CORS_ORIGINS` and the provider webhook URLs to it.
 
-1. New project → import the repo → root directory `apps/web`.
-2. Framework preset: Next.js (auto-detected).
-3. Set every `NEXT_PUBLIC_*` and server-side web variable from
-   ENVIRONMENT.md.
-4. `NEXT_PUBLIC_API_URL` must point at your deployed Railway API's public
-   URL.
+## Remaining requirements before real customers
 
-## 6. Paystack / Flutterwave
-
-1. Get live secret/public keys from each dashboard once you're ready to
-   accept real payments (test keys work identically against the same
-   adapter code for a staging deployment).
-2. Register webhook URLs (see API.md § "Webhook URLs to register"):
-   - Paystack → Settings → API Keys & Webhooks → `https://<api-domain>/api/v1/webhooks/paystack`
-   - Flutterwave → Settings → Webhooks → `https://<api-domain>/api/v1/webhooks/flutterwave`,
-     and set the **same** secret hash you configure as
-     `FLUTTERWAVE_WEBHOOK_SECRET_HASH`.
-
-## 7. Meta WhatsApp Cloud API (optional)
-
-Click-to-chat works with zero setup. To enable automatic sending:
-
-1. Create a Meta App with the WhatsApp product at
-   [developers.facebook.com](https://developers.facebook.com).
-2. Get a permanent access token, phone number ID, and business account ID.
-3. Set all `META_WHATSAPP_*` variables and `WHATSAPP_PROVIDER=meta-cloud-api`.
-4. **Note:** the webhook _route_ for inbound delivery-status events is
-   prepared in the adapter (`services/whatsapp/meta-cloud-api.provider.ts`)
-   but not yet mounted in `routes.ts` — see HANDOVER.md. Automatic
-   _sending_ works without this; only inbound delivery-status callbacks
-   need it.
-
-## Custom domain
-
-- Vercel: Project → Settings → Domains → add your apex/subdomain, update
-  your DNS per Vercel's instructions.
-- Railway: Project → Settings → Networking → Custom Domain, add a CNAME.
-- Update `NEXT_PUBLIC_APP_URL` / `NEXT_PUBLIC_API_URL` / `CORS_ORIGINS` to
-  the final domains and redeploy both apps.
-
-## Post-deployment smoke test
-
-A minimal script is provided at `scripts/smoke-test.sh` — run it with your
-deployed URLs:
-
-```bash
-API_URL=https://api.yourdomain.com WEB_URL=https://yourdomain.com ./scripts/smoke-test.sh
-```
-
-It checks: API `/health` and `/ready`, the web app's homepage responds
-200, and that an unauthenticated API request to a protected route
-correctly returns 401 (proving auth middleware is live, not accidentally
-bypassed).
-
-## Rollback
-
-- **Vercel**: Deployments tab → select the previous successful deployment
-  → "Promote to Production". Instant, no rebuild needed.
-- **Railway**: Deployments tab → select the previous deployment → Redeploy.
-- **Database**: Prisma migrations are forward-only by design. To roll back
-  a schema change, write a new migration that reverses it — never edit or
-  delete a migration file that has already been applied to production.
-  Take a Neon branch/snapshot before any risky migration (see
-  BACKUP_AND_RESTORE.md).
-
-## Environment-variable checklist before going live
-
-Walk ENVIRONMENT.md top to bottom. At minimum, production needs: every
-"Required" row filled with a real, unique secret; and
-`EMAIL_PROVIDER`/`STORAGE_PROVIDER` credentials filled for whichever
-provider you selected (the app refuses to boot otherwise — see
-`packages/config/src/env.ts`).
+See [TEST_REPORT.md](TEST_REPORT.md), section "Not run", for the precise list: Meta onboarding and approved templates, a real WhatsApp and Telegram
+smoke test, a Paystack test-mode checkout against the real gateway, final logo/favicon, lawyer-reviewed legal pages, and operator details.

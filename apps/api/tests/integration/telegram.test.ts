@@ -42,7 +42,11 @@ describe('telegram channel', () => {
 
     // 1. not linked yet → nothing is sent
     expect(
-      await sendTelegramToCustomer({ workspaceId: workspace.id, customerId: customer.id, text: 'hi' }),
+      await sendTelegramToCustomer({
+        workspaceId: workspace.id,
+        customerId: customer.id,
+        text: 'hi',
+      }),
     ).toEqual({ sent: false, reason: 'not_linked' });
 
     // 2. staff generates the one-time deep link
@@ -55,7 +59,9 @@ describe('telegram channel', () => {
 
     // 3. webhook must be authenticated
     const update = (text: string) => ({ message: { text, chat: { id: chatId, type: 'private' } } });
-    const bad = await request(app).post('/api/v1/webhooks/telegram').send(update(`/start ${linkToken}`));
+    const bad = await request(app)
+      .post('/api/v1/webhooks/telegram')
+      .send(update(`/start ${linkToken}`));
     expect(bad.status).toBe(401);
 
     // 4. customer taps the link → chat is stored, token is burned
@@ -71,7 +77,11 @@ describe('telegram channel', () => {
 
     // 5. now delivery works and is recorded
     expect(
-      await sendTelegramToCustomer({ workspaceId: workspace.id, customerId: customer.id, text: 'Invoice ready' }),
+      await sendTelegramToCustomer({
+        workspaceId: workspace.id,
+        customerId: customer.id,
+        text: 'Invoice ready',
+      }),
     ).toEqual({ sent: true });
     const delivery = await prisma.messageDelivery.findFirstOrThrow({
       where: { workspaceId: workspace.id, channel: 'TELEGRAM' },
@@ -83,7 +93,9 @@ describe('telegram channel', () => {
       .post('/api/v1/webhooks/telegram')
       .set('X-Telegram-Bot-Api-Secret-Token', SECRET)
       .send(update('/stop'));
-    expect((await prisma.customer.findUniqueOrThrow({ where: { id: customer.id } })).telegramChatId).toBeNull();
+    expect(
+      (await prisma.customer.findUniqueOrThrow({ where: { id: customer.id } })).telegramChatId,
+    ).toBeNull();
   });
 
   it('cannot link a customer in another workspace', async () => {

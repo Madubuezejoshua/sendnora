@@ -50,7 +50,10 @@ export async function withIdempotency(
     return { ...result, replayed: false };
   }
   if (key.length > 255 || !/^[\x21-\x7e]+$/.test(key)) {
-    throw new AppError('VALIDATION_ERROR', 'Idempotency-Key must be 1-255 printable ASCII characters');
+    throw new AppError(
+      'VALIDATION_ERROR',
+      'Idempotency-Key must be 1-255 printable ASCII characters',
+    );
   }
 
   const requestHash = hashRequest(requestBody);
@@ -99,7 +102,10 @@ export async function withIdempotency(
       if (taken.count === 1) break;
     }
     if (Date.now() - waitStarted > WAIT_MAX_MS) {
-      throw new AppError('CONFLICT', 'A request with this Idempotency-Key is still being processed');
+      throw new AppError(
+        'CONFLICT',
+        'A request with this Idempotency-Key is still being processed',
+      );
     }
     await sleep(WAIT_STEP_MS);
   }

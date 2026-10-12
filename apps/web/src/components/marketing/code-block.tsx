@@ -11,9 +11,16 @@ export function CodeBlock({
   className?: string;
 }) {
   return (
-    <figure className={cn('border-border overflow-hidden rounded-lg border bg-[hsl(222_47%_8%)] text-slate-100', className)}>
+    <figure
+      className={cn(
+        'border-border overflow-hidden rounded-lg border bg-[hsl(222_47%_8%)] text-slate-100',
+        className,
+      )}
+    >
       {label && (
-        <figcaption className="border-b border-white/10 px-4 py-2 font-mono text-xs text-slate-400">{label}</figcaption>
+        <figcaption className="border-b border-white/10 px-4 py-2 font-mono text-xs text-slate-400">
+          {label}
+        </figcaption>
       )}
       <pre
         tabIndex={0}

@@ -66,7 +66,10 @@ export function assertWebhookUrlShape(raw: string, allowLocal: boolean): URL {
   if (url.protocol !== 'https:' && !(local && url.protocol === 'http:')) {
     throw new AppError('UNPROCESSABLE', 'Webhook URL must use https');
   }
-  if (net.isIP(url.hostname.replace(/^\[|\]$/g, '')) && isBlockedAddress(url.hostname.replace(/^\[|\]$/g, ''), allowLocal)) {
+  if (
+    net.isIP(url.hostname.replace(/^\[|\]$/g, '')) &&
+    isBlockedAddress(url.hostname.replace(/^\[|\]$/g, ''), allowLocal)
+  ) {
     throw new AppError('UNPROCESSABLE', 'Webhook URL points to a private or reserved address');
   }
   return url;
@@ -122,7 +125,8 @@ export function safeRequest(
                 new Error('blocked_address: target resolves to a private or reserved address'),
               );
             }
-            if (options.all) return (callback as unknown as (e: null, a: dns.LookupAddress[]) => void)(null, safe);
+            if (options.all)
+              return (callback as unknown as (e: null, a: dns.LookupAddress[]) => void)(null, safe);
             return callback(null, safe[0]!.address, safe[0]!.family);
           });
         },
@@ -135,7 +139,10 @@ export function safeRequest(
           if (size <= 2048) chunks.push(c);
         });
         res.on('end', () =>
-          resolve({ status: res.statusCode ?? 0, bodyPreview: Buffer.concat(chunks).toString('utf8') }),
+          resolve({
+            status: res.statusCode ?? 0,
+            bodyPreview: Buffer.concat(chunks).toString('utf8'),
+          }),
         );
       },
     );

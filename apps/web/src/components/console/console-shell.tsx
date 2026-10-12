@@ -46,14 +46,22 @@ export function ConsoleShell({
             <Link href="/console" aria-label="Sendnaro console home">
               <Wordmark />
             </Link>
-            <span className="text-muted-foreground hidden truncate text-sm sm:block" title={businessName}>
+            <span
+              className="text-muted-foreground hidden truncate text-sm sm:block"
+              title={businessName}
+            >
               {businessName}
             </span>
-            {role === 'WORKSPACE_OWNER' || role === 'WORKSPACE_ADMIN' ? null : <Badge variant="outline">read only</Badge>}
+            {role === 'WORKSPACE_OWNER' || role === 'WORKSPACE_ADMIN' ? null : (
+              <Badge variant="outline">read only</Badge>
+            )}
           </div>
           <UserMenu name={userName} email={userEmail} isPlatformAdmin={isPlatformAdmin} />
         </div>
-        <nav aria-label="Console" className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-3 sm:px-5">
+        <nav
+          aria-label="Console"
+          className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-3 sm:px-5"
+        >
           {NAV.map((item) => {
             const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
             return (
@@ -63,7 +71,9 @@ export function ConsoleShell({
                 aria-current={active ? 'page' : undefined}
                 className={cn(
                   'focus-visible:ring-ring whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2',
-                  active ? 'border-primary text-foreground' : 'text-muted-foreground hover:text-foreground border-transparent',
+                  active
+                    ? 'border-primary text-foreground'
+                    : 'text-muted-foreground hover:text-foreground border-transparent',
                 )}
               >
                 {item.label}

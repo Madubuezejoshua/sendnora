@@ -18,7 +18,11 @@ export interface PaidOrder {
  * The Idempotency-Key makes a retried webhook safe: the same key returns the same invoice.
  */
 export async function createReceiptForPaidOrder(config: SendnaroConfig, order: PaidOrder) {
-  const { status, body } = await sendnaro<{ id: string; number: string; deliveries: { id: string; channel: string; status: string }[] }>(
+  const { status, body } = await sendnaro<{
+    id: string;
+    number: string;
+    deliveries: { id: string; channel: string; status: string }[];
+  }>(
     config,
     'POST',
     '/invoices',
@@ -44,5 +48,10 @@ export async function createReceiptForPaidOrder(config: SendnaroConfig, order: P
     { idempotencyKey: `shop-order-${order.id}-invoice` },
   );
   // 202 means "accepted for processing", not "delivered". Track delivery with GET /deliveries/{id} or a webhook.
-  return { httpStatus: status, invoiceId: body.id, number: body.number, deliveries: body.deliveries };
+  return {
+    httpStatus: status,
+    invoiceId: body.id,
+    number: body.number,
+    deliveries: body.deliveries,
+  };
 }

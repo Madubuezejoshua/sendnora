@@ -13,7 +13,15 @@ import {
   DropdownMenuTrigger,
 } from '@sendnaro/ui';
 
-export function UserMenu({ name, email, isPlatformAdmin }: { name: string; email: string; isPlatformAdmin?: boolean }) {
+export function UserMenu({
+  name,
+  email,
+  isPlatformAdmin,
+}: {
+  name: string;
+  email: string;
+  isPlatformAdmin?: boolean;
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger

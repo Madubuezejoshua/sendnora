@@ -8,10 +8,21 @@ import { cn } from '@sendnaro/ui';
  */
 export function Wordmark({ className }: { className?: string }) {
   if (BRAND.assets.logo) {
-    return <img src={BRAND.assets.logo} alt={BRAND.productName} className={cn('h-7 w-auto', className)} />;
+    return (
+      <img
+        src={BRAND.assets.logo}
+        alt={BRAND.productName}
+        className={cn('h-7 w-auto', className)}
+      />
+    );
   }
   return (
-    <span className={cn('inline-flex items-baseline gap-0.5 text-lg font-semibold tracking-tight', className)}>
+    <span
+      className={cn(
+        'inline-flex items-baseline gap-0.5 text-lg font-semibold tracking-tight',
+        className,
+      )}
+    >
       {BRAND.productName}
       <span aria-hidden="true" className="bg-success size-1.5 rounded-full" />
     </span>

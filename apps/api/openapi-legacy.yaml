@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Sendnaro legacy (manual invoicing) API
-  version: "legacy"
+  version: 'legacy'
   description: >
     LEGACY manual-invoicing API, served under /api/legacy/v1 and kept for existing data and clients. The product API is openapi.yaml. Authenticated via a short-lived
     bearer token minted by the Next.js app after validating the user's

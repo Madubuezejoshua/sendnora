@@ -10,3 +10,7 @@ packages/database/generated
 pnpm-lock.yaml
 package-lock.json
 CHANGELOG.md
+test-evidence
+.dev-emails
+.dev-storage
+*.sql

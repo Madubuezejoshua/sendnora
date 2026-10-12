@@ -1,4 +1,4 @@
-import NextAuth from 'next-auth';
+import NextAuth, { CredentialsSignin } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import Google from 'next-auth/providers/google';
 import { PrismaAdapter } from '@auth/prisma-adapter';
@@ -29,6 +29,11 @@ import { authConfig } from './auth.config.js';
  * User/Account rows get created automatically for OAuth sign-ins, which
  * Credentials' hand-rolled authorize() has to do itself instead).
  */
+
+/** Surfaced to the login form as result.code so it can tell the user what to do (only after a correct password). */
+class EmailNotVerifiedError extends CredentialsSignin {
+  override code = 'email_not_verified';
+}
 
 const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60; // 30 days
 
@@ -64,6 +69,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!validPassword) {
           await recordLoginEvent(user.id, false, 'invalid_password');
           return null;
+        }
+
+        // Account email must be verified before a session exists. Checked only after the password, so this
+        // reveals nothing to someone who does not know it.
+        if (!user.emailVerified) {
+          await recordLoginEvent(user.id, false, 'email_unverified');
+          throw new EmailNotVerifiedError();
         }
 
         if (user.twoFactorSecret?.enabled) {

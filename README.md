@@ -1,162 +1,78 @@
 # Sendnaro
 
-Invoices, quotes and receipts your customers can pay in minutes — built for
-freelancers and small businesses, with WhatsApp-first sharing and
-Paystack/Flutterwave payment collection.
+Automated customer messages through one API. Connect your website or app to send **invoices and receipts**,
+**WhatsApp verification codes**, and **order updates** (WhatsApp and Telegram), with delivery tracking, retries and
+signed webhooks. Set up once, send from your backend, track every delivery.
 
-> "Sendnaro" is a working name. See HANDOVER.md for the one-file rebrand
-> checklist.
+> Status: implemented and tested locally against a real PostgreSQL. **Not deployed under the Sendnaro name,
+> and no real WhatsApp/Telegram/payment provider has been exercised.** See [TEST_REPORT.md](TEST_REPORT.md) for what
+> ran, what was simulated and what was not run.
 
-## Overview
+## What is in the box
 
-Sendnaro is a multi-tenant SaaS: businesses ("workspaces") create quotes
-and invoices, share them with customers over WhatsApp or email, collect
-payments online or record them manually, and get automatic receipts,
-reminders and reports. Full requirements: PRODUCT_REQUIREMENTS.md. Full
-architecture rationale, including the auth trust-boundary design:
-ARCHITECTURE.md.
+| Area                 | What it does                                                                                                         |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Public API `/api/v1` | API-key authenticated: invoices/receipts, WhatsApp OTP, notifications, Telegram linking, deliveries                  |
+| Pipeline             | Transactional outbox, workers with crash recovery, retries with backoff, provider receipts, signed outgoing webhooks |
+| Sandbox              | The real API and pipeline with simulated providers; separate keys, data and numbering; watermarked PDFs              |
+| Console `/console`   | Integration checklist, sandbox playground, API keys, deliveries, settings (profile, channels, webhooks), activation  |
+| Admin `/admin`       | Billing switch (off by default), price, gateway readiness, verified revenue, suspension, audit history               |
+| Website              | Home, API docs, pricing (reflects real billing state), privacy, terms, support                                       |
 
-## Screenshots
+Not a CRM, accounting suite or campaign sender. No generative AI is involved in producing invoices or codes.
 
-Not included in this build — no deployment has been made yet to capture
-real screenshots from. See MARKETPLACE_LISTING.md for the suggested
-screenshot list once a deployment exists.
+## Quick start (local)
 
-## Architecture
-
-```
-apps/web/    Next.js 15 — marketing site + authenticated app UI
-apps/api/    Express 4 — the business-domain API
-packages/database/  Prisma schema + client + auth crypto helpers
-packages/shared/     Money math, validation, RBAC, branding — used by both apps
-packages/ui/         Design system (Radix + Tailwind)
-packages/config/     Shared tsconfig presets + env validation
-```
-
-See ARCHITECTURE.md for the full picture, especially the web↔API trust
-boundary (how a browser session becomes an authenticated API call without
-ever exposing the signing secret to the browser).
-
-## Requirements
-
-- Node.js 20+ (developed against Node 22/24)
-- npm 10+
-- Docker (for local Postgres) — or any Postgres 14+ connection string
-- A Neon account for production (or any Postgres host)
-
-## Installation
+Requirements: Node 20+, PostgreSQL 16 (Docker is the easy route).
 
 ```bash
-git clone <this-repo>
-cd invoice_tap
-npm install
-```
-
-## Environment setup
-
-```bash
-cp .env.example .env
-```
-
-Fill in `AUTH_SECRET`, `API_TOKEN_SECRET`, `APP_ENCRYPTION_KEY`,
-`CRON_SECRET` with generated random values (`openssl rand -base64 32`).
-Everything else has a working default for local development. Full
-variable-by-variable reference: ENVIRONMENT.md.
-
-## Database
-
-```bash
-docker compose up -d
+npm ci
+cp .env.example .env            # fill the secrets: see ENVIRONMENT.md (openssl rand -base64 32 for each)
+docker compose up -d            # PostgreSQL on :5432
 npm run db:generate --workspace=@sendnaro/database
-npm run build --workspace=@sendnaro/database            # compiles the package — see SETUP.md
-npm run db:migrate --workspace=@sendnaro/database
-npm run db:seed --workspace=@sendnaro/database         # plans + optional platform admin
-npm run db:seed:demo --workspace=@sendnaro/database     # demo workspace, refuses to run in production
+npm run db:migrate:deploy --workspace=@sendnaro/database
+npm run db:seed --workspace=@sendnaro/database      # plans, templates, platform admin, billing defaults (billing OFF)
+npm run dev                     # web on :3000, API on :4000 (set WORKER_INLINE=true so queued work is processed)
 ```
 
-Demo login after seeding: `demo@sendnaro.com` / `DemoPassword123!`.
+Then open http://localhost:3000, register, verify (the email is captured in `apps/web/.dev-emails/`), create a
+business, and use the **sandbox playground** on the console's Integration page. Details: [SETUP.md](SETUP.md).
 
-## Development
+First request, from your server (put the sandbox key in an environment variable):
 
 ```bash
-npm run dev          # both apps together (web on :3000, api on :4000)
-npm run dev:web       # web only
-npm run dev:api       # api only
+export SENDNARO_API_KEY=sn_test_...
+bash examples/curl/create-invoice.sh
 ```
 
-Open http://localhost:3000.
+## Documentation
 
-## Test commands
+- [docs/API_INTEGRATION.md](docs/API_INTEGRATION.md) — integrating a merchant backend; TypeScript examples in [examples/](examples)
+- [docs/SANDBOX.md](docs/SANDBOX.md) — the sandbox, its scenarios and the playground
+- [docs/BILLING.md](docs/BILLING.md) — one-time activation payments and how the owner turns them on
+- [docs/CHANNELS.md](docs/CHANNELS.md) — connecting WhatsApp (Meta) and Telegram
+- [apps/api/openapi.yaml](apps/api/openapi.yaml) — the v1 contract, verified against the router in tests
+- [ARCHITECTURE.md](ARCHITECTURE.md), [SETUP.md](SETUP.md), [DEPLOYMENT.md](DEPLOYMENT.md), [ENVIRONMENT.md](ENVIRONMENT.md)
+- [SECURITY.md](SECURITY.md), [OPERATIONS.md](OPERATIONS.md), [TESTING.md](TESTING.md), [BACKUP_AND_RESTORE.md](BACKUP_AND_RESTORE.md)
+- [TEST_REPORT.md](TEST_REPORT.md), [CHANGELOG.md](CHANGELOG.md), [docs/legacy](docs/legacy) (the previous invoicing product)
 
-```bash
-npm run test                                    # every workspace's tests
-npm run test --workspace=@sendnaro/shared      # unit tests (no DB needed)
-npm run test --workspace=@sendnaro/api         # unit + integration (needs Postgres)
-npm run test:e2e --workspace=@sendnaro/web     # Playwright (needs the full stack + Postgres)
+## Repository layout
+
+```
+apps/api        Express API (Vercel function or long-running process) + outbox worker
+apps/web        Next.js website, console and admin
+packages/database  Prisma schema, migrations, seed
+packages/shared    Money/tax math, errors, phone parsing, branding
+packages/config    Environment validation
+packages/ui        Design system components
+examples/       Tested server-side integration examples (shown in the docs)
 ```
 
-See TESTING.md for exactly what's covered, and — importantly — what was
-actually executed and passing in the environment that produced this
-repository versus written-but-unverified there.
+## Brand assets
 
-## Production build
+Until final artwork is supplied the UI renders a text wordmark. Set the paths in
+`packages/shared/src/branding.ts` (`BRAND.assets`) and drop files in `apps/web/public/brand/`.
 
-```bash
-npm run build
-```
+## Licence
 
-## Deployment
-
-Vercel (web) + Railway (api, Dockerfile provided) + Neon (database) +
-Backblaze B2 (storage) + Resend (email). Full steps: DEPLOYMENT.md.
-
-## Documentation index
-
-| File                                            | Covers                                          |
-| ----------------------------------------------- | ----------------------------------------------- |
-| ARCHITECTURE.md                                 | System design, the web↔API trust boundary       |
-| PRODUCT_REQUIREMENTS.md                         | Features, pricing, scope                        |
-| SETUP.md                                        | Detailed local dev setup                        |
-| ENVIRONMENT.md                                  | Every environment variable                      |
-| DATABASE.md                                     | Schema design rationale, migrations, seeding    |
-| API.md                                          | Route map, conventions                          |
-| SECURITY.md                                     | Controls implemented, vulnerability reporting   |
-| TESTING.md                                      | What's tested, how to run it                    |
-| DEPLOYMENT.md                                   | Production deployment steps                     |
-| OPERATIONS.md                                   | Cron jobs, logs, admin panel, incident response |
-| BACKUP_AND_RESTORE.md                           | Database/file backup and disaster recovery      |
-| HANDOVER.md                                     | What's built, what's not, rebrand checklist     |
-| CHANGELOG.md / ROADMAP.md                       | History and what's next                         |
-| MARKETPLACE_LISTING.md / DATA_ROOM_CHECKLIST.md | Acquisition preparation                         |
-
-## Troubleshooting
-
-- **"Invalid environment configuration" on boot** — a required variable is
-  missing; the error message from `packages/config/src/env.ts` names it.
-- **Prisma client errors after pulling schema changes** — run
-  `npm run db:generate --workspace=@sendnaro/database`.
-- **`npm install` is very slow on Windows** — this is typically real-time
-  antivirus scanning of `node_modules` writes, not a hang; give it time.
-- **Docker Desktop won't come up** — the app still runs against any
-  Postgres connection string; point `DATABASE_URL` at a hosted instance
-  (e.g. a free Neon branch) if your local Docker engine is unavailable.
-- **Emails aren't sending** — `EMAIL_PROVIDER=dev` (the default) writes
-  emails to `apps/api/.dev-emails/*.html` and logs a preview instead of
-  sending; switch to `EMAIL_PROVIDER=resend` with real credentials to send
-  for real.
-- **`npm run build --workspace=@sendnaro/web` fails with `EPERM:
-operation not permitted, scandir 'C:\Users\<you>\Application Data'` (or
-  `...\Cookies`, `...\Local Settings`)** — this is a Windows-specific
-  quirk, not a bug in this codebase: some upgraded/legacy Windows user
-  profiles carry hidden NTFS junctions (`Application Data`, `Cookies`,
-  etc.) under `%USERPROFILE%` that throw `EPERM` when a tool recursively
-  scans the home directory. It does not occur on Linux (Vercel/Railway/CI
-  all build on Linux, so production deploys are unaffected). If you hit
-  this locally, either build inside Docker/WSL2, or point `HOME`/
-  `USERPROFILE` at a directory without these junctions for the build
-  command only, e.g. (PowerShell): `$env:USERPROFILE='C:\temp-home';
-npm run build`.
-
-## License
-
-Proprietary — see LICENSE.
+Proprietary. See [LICENSE](LICENSE).

@@ -239,6 +239,7 @@ model Workspace {
   apiKeys                ApiKey[]
   webhookEvents          WebhookEvent[]
   paymentProviderConfigs PaymentProviderConfig[]
+  PaymentEventSource     PaymentEventSource[]
 
   @@index([ownerId])
 }
@@ -1870,4 +1871,21 @@ model Entitlement {
 
   workspace Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   payment   ActivationPayment? @relation(fields: [activationPaymentId], references: [id])
+}
+
+// A merchant's OWN payment account (Paystack) whose signed webhooks turn verified purchases into receipts
+// unattended. Entirely separate from Sendnaro's activation payments.
+model PaymentEventSource {
+  id               String         @id @default(cuid())
+  workspaceId      String
+  environment      ApiEnvironment
+  provider         String // 'PAYSTACK'
+  // The merchant's Paystack secret key: verifies webhook signatures. AES-256-GCM, never returned.
+  secretCiphertext String         @db.Text
+  defaultChannels  String[]
+  createdAt        DateTime       @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, environment, provider])
 }

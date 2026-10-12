@@ -19,14 +19,19 @@ import { publicId } from '../ids.js';
  * 300 characters, and refuses links (explicit or inside the free text) unless the host is on the
  * business's allowlist. It is deliberately not a general-purpose messaging relay.
  */
-const LINK_LIKE = /(https?:\/\/|www\.)\S+|\b[a-z0-9-]+\.(com|net|org|io|app|co|ng|me|ly|link|xyz|info|biz|click|top)\b/gi;
+const LINK_LIKE =
+  /(https?:\/\/|www\.)\S+|\b[a-z0-9-]+\.(com|net|org|io|app|co|ng|me|ly|link|xyz|info|biz|click|top)\b/gi;
 
 function hostAllowed(host: string, allowed: string[]): boolean {
   const h = host.toLowerCase();
   return allowed.some((a) => h === a.toLowerCase() || h.endsWith(`.${a.toLowerCase()}`));
 }
 
-export function assertLinksAllowed(texts: (string | undefined)[], link: string | undefined, allowed: string[]): void {
+export function assertLinksAllowed(
+  texts: (string | undefined)[],
+  link: string | undefined,
+  allowed: string[],
+): void {
   const hosts: string[] = [];
   if (link) {
     try {
@@ -73,7 +78,10 @@ export function composeNotification(body: Body, businessName: string): string {
   let amount = '';
   if (fields.amount_minor !== undefined) {
     if (!fields.currency || !isSupportedCurrency(fields.currency)) {
-      throw new AppError('UNPROCESSABLE', 'fields.currency is required (and must be supported) with fields.amount_minor');
+      throw new AppError(
+        'UNPROCESSABLE',
+        'fields.currency is required (and must be supported) with fields.amount_minor',
+      );
     }
     const def = getCurrency(fields.currency);
     amount = ` of ${fields.currency} ${(fields.amount_minor / 10 ** def.minorUnitDigits).toLocaleString('en-US', { minimumFractionDigits: def.minorUnitDigits, maximumFractionDigits: def.minorUnitDigits })}`;
@@ -87,18 +95,24 @@ export function composeNotification(body: Body, businessName: string): string {
       text = `Hi ${name}, we received your payment${amount}${ref ? ` for order${ref}` : ''}.${fields.message ? ` ${fields.message}` : ''}`;
       break;
     case 'shipping_update':
-      if (!fields.message) throw new AppError('UNPROCESSABLE', 'fields.message is required for shipping_update');
+      if (!fields.message)
+        throw new AppError('UNPROCESSABLE', 'fields.message is required for shipping_update');
       text = `Hi ${name}, update on your order${ref}: ${fields.message}`;
       break;
     default:
-      if (!fields.message) throw new AppError('UNPROCESSABLE', 'fields.message is required for general_update');
+      if (!fields.message)
+        throw new AppError('UNPROCESSABLE', 'fields.message is required for general_update');
       text = `Hi ${name}, ${fields.message}`;
   }
   if (body.link) text += ` ${body.link.url}`;
   return `${text} - ${businessName}`;
 }
 
-export async function createNotification(ctx: SnContext, body: Body, idempotencyKey: string | undefined) {
+export async function createNotification(
+  ctx: SnContext,
+  body: Body,
+  idempotencyKey: string | undefined,
+) {
   await assertCanSend(ctx.workspaceId, ctx.environment);
   const scenario = assertScenarioAllowed(ctx, body.scenario);
   await assertChannelsReady(ctx, body.channels);
@@ -107,15 +121,29 @@ export async function createNotification(ctx: SnContext, body: Body, idempotency
     where: { id: ctx.workspaceId },
     include: { businessProfile: true },
   });
-  assertLinksAllowed([body.fields.message], body.link?.url, workspace.businessProfile?.allowedLinkOrigins ?? []);
+  assertLinksAllowed(
+    [body.fields.message],
+    body.link?.url,
+    workspace.businessProfile?.allowedLinkOrigins ?? [],
+  );
   const text = composeNotification(body, workspace.businessProfile?.displayName ?? workspace.name);
 
   return withIdempotency(
-    { workspaceId: ctx.workspaceId, environment: ctx.environment, operation: 'notifications.create' },
+    {
+      workspaceId: ctx.workspaceId,
+      environment: ctx.environment,
+      operation: 'notifications.create',
+    },
     idempotencyKey,
     body,
     async (tx) => {
-      const recipient = await upsertRecipient(tx, ctx, body.customer, body.consent?.whatsapp_transactional, workspace.countryCode);
+      const recipient = await upsertRecipient(
+        tx,
+        ctx,
+        body.customer,
+        body.consent?.whatsapp_transactional,
+        workspace.countryCode,
+      );
       assertRecipientCanUse(recipient, body.channels);
       const deliveries = await createChannelDeliveries(tx, ctx, {
         recipient,

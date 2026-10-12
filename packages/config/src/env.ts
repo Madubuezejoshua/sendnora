@@ -93,11 +93,6 @@ export const apiEnvSchema = z.object({
     .default('false')
     .transform((v) => v === 'true'),
 
-  // Optional AI (Groq) — never required for core functionality.
-  AI_PROVIDER: z.enum(['groq', 'none']).default('none'),
-  GROQ_API_KEY: z.string().optional(),
-  AI_MODEL: z.string().optional(),
-
   // Optional monitoring
   SENTRY_DSN: z.string().optional(),
 
@@ -139,7 +134,12 @@ export function parseApiEnv(source: NodeJS.ProcessEnv = process.env): ApiEnv {
 function assertProductionInvariants(env: ApiEnv): void {
   const problems: string[] = [];
   if (!env.OTP_HMAC_KEY) problems.push('OTP_HMAC_KEY is required in production.');
-  if (env.ALLOW_LOCAL_WEBHOOK_TARGETS) problems.push('ALLOW_LOCAL_WEBHOOK_TARGETS must not be enabled in production.');
+  if (env.STORAGE_PROVIDER === 'local')
+    problems.push(
+      'STORAGE_PROVIDER=local is for development only; production needs private B2 storage so customer documents are never on a local disk.',
+    );
+  if (env.ALLOW_LOCAL_WEBHOOK_TARGETS)
+    problems.push('ALLOW_LOCAL_WEBHOOK_TARGETS must not be enabled in production.');
 
   if (env.EMAIL_PROVIDER === 'resend' && !env.RESEND_API_KEY) {
     problems.push('EMAIL_PROVIDER=resend requires RESEND_API_KEY.');

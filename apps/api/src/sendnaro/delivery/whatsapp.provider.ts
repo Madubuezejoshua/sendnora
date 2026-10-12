@@ -19,7 +19,9 @@ export interface WhatsAppConnectionConfig {
   phoneNumberId: string;
   wabaId?: string;
   apiVersion?: string;
-  templates?: Partial<Record<'otp' | 'invoice' | 'notification', { name: string; language: string }>>;
+  templates?: Partial<
+    Record<'otp' | 'invoice' | 'notification', { name: string; language: string }>
+  >;
 }
 
 export interface WhatsAppSecrets {
@@ -52,7 +54,12 @@ function templateBody(req: SendRequest, tpl: { name: string; language: string })
       ...base,
       components: [
         { type: 'body', parameters: [{ type: 'text', text: req.otpCode }] },
-        { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: req.otpCode }] },
+        {
+          type: 'button',
+          sub_type: 'url',
+          index: '0',
+          parameters: [{ type: 'text', text: req.otpCode }],
+        },
       ],
     };
   }
@@ -62,13 +69,21 @@ function templateBody(req: SendRequest, tpl: { name: string; language: string })
       components: [
         {
           type: 'header',
-          parameters: [{ type: 'document', document: { link: req.document.url, filename: req.document.filename } }],
+          parameters: [
+            {
+              type: 'document',
+              document: { link: req.document.url, filename: req.document.filename },
+            },
+          ],
         },
         { type: 'body', parameters: [{ type: 'text', text: req.document.caption }] },
       ],
     };
   }
-  return { ...base, components: [{ type: 'body', parameters: [{ type: 'text', text: req.text ?? '' }] }] };
+  return {
+    ...base,
+    components: [{ type: 'body', parameters: [{ type: 'text', text: req.text ?? '' }] }],
+  };
 }
 
 /** Meta error codes we treat specially (see the Cloud API throughput and error documentation). */
@@ -81,12 +96,21 @@ export const whatsappProvider: ChannelProvider = {
   async send(req: SendRequest): Promise<ProviderOutcome> {
     const conn = await loadWhatsAppConnection(req.workspaceId, req.environment);
     if (!conn) {
-      return { kind: 'permanent', code: 'setup_required', message: 'WhatsApp is not connected for this business' };
+      return {
+        kind: 'permanent',
+        code: 'setup_required',
+        message: 'WhatsApp is not connected for this business',
+      };
     }
-    const templateKind = req.kind === 'OTP' ? 'otp' : req.kind === 'INVOICE' ? 'invoice' : 'notification';
+    const templateKind =
+      req.kind === 'OTP' ? 'otp' : req.kind === 'INVOICE' ? 'invoice' : 'notification';
     const tpl = conn.config.templates?.[templateKind];
     if (!tpl) {
-      return { kind: 'permanent', code: 'setup_required', message: `No approved ${templateKind} template configured` };
+      return {
+        kind: 'permanent',
+        code: 'setup_required',
+        message: `No approved ${templateKind} template configured`,
+      };
     }
 
     const version = conn.config.apiVersion ?? parseApiEnv().META_WHATSAPP_API_VERSION;
@@ -96,7 +120,10 @@ export const whatsappProvider: ChannelProvider = {
     try {
       const res = await transport(url, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${conn.secrets.accessToken}`, 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: `Bearer ${conn.secrets.accessToken}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           messaging_product: 'whatsapp',
           recipient_type: 'individual',
@@ -116,25 +143,50 @@ export const whatsappProvider: ChannelProvider = {
       const code = json.error?.code ?? 0;
       const retryAfter = Number(res.headers.get('retry-after')) || 30;
       if (res.status === 429 || THROTTLE_CODES.has(code)) {
-        return { kind: 'throttled', code: 'rate_limited', message: 'Provider throttled the request', retryAfterSeconds: retryAfter };
+        return {
+          kind: 'throttled',
+          code: 'rate_limited',
+          message: 'Provider throttled the request',
+          retryAfterSeconds: retryAfter,
+        };
       }
       if (res.status >= 500) {
-        return { kind: 'transient', code: 'provider_unavailable', message: `Provider error ${res.status}` };
+        return {
+          kind: 'transient',
+          code: 'provider_unavailable',
+          message: `Provider error ${res.status}`,
+        };
       }
       if (INVALID_RECIPIENT_CODES.has(code)) {
-        return { kind: 'permanent', code: 'invalid_recipient', message: 'Recipient is not a WhatsApp user' };
+        return {
+          kind: 'permanent',
+          code: 'invalid_recipient',
+          message: 'Recipient is not a WhatsApp user',
+        };
       }
       if (CREDENTIAL_CODES.has(code) || res.status === 401) {
         await prisma.channelConnection.update({
           where: { id: conn.row.id },
           data: { status: 'ERROR', lastError: 'credentials_rejected', lastCheckedAt: new Date() },
         });
-        return { kind: 'permanent', code: 'credentials_invalid', message: 'WhatsApp credentials were rejected' };
+        return {
+          kind: 'permanent',
+          code: 'credentials_invalid',
+          message: 'WhatsApp credentials were rejected',
+        };
       }
-      return { kind: 'permanent', code: 'provider_rejected', message: `Provider rejected the message (${code || res.status})` };
+      return {
+        kind: 'permanent',
+        code: 'provider_rejected',
+        message: `Provider rejected the message (${code || res.status})`,
+      };
     } catch (err) {
       if ((err as Error).name === 'AbortError') {
-        return { kind: 'ambiguous', code: 'provider_timeout', message: 'Request to provider timed out' };
+        return {
+          kind: 'ambiguous',
+          code: 'provider_timeout',
+          message: 'Request to provider timed out',
+        };
       }
       return { kind: 'transient', code: 'network_error', message: 'Could not reach the provider' };
     } finally {

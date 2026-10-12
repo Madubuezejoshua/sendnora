@@ -16,7 +16,11 @@ export function generateWebhookSecret(): string {
   return `whsec_${randomBytes(24).toString('base64url')}`;
 }
 
-export function signPayload(secret: string, rawBody: string, timestamp = Math.floor(Date.now() / 1000)): string {
+export function signPayload(
+  secret: string,
+  rawBody: string,
+  timestamp = Math.floor(Date.now() / 1000),
+): string {
   const v1 = createHmac('sha256', secret).update(`${timestamp}.${rawBody}`).digest('hex');
   return `t=${timestamp},v1=${v1}`;
 }
@@ -29,7 +33,9 @@ export function verifySignature(
   nowSeconds = Math.floor(Date.now() / 1000),
 ): boolean {
   if (!header) return false;
-  const parts = Object.fromEntries(header.split(',').map((p) => p.trim().split('=', 2) as [string, string]));
+  const parts = Object.fromEntries(
+    header.split(',').map((p) => p.trim().split('=', 2) as [string, string]),
+  );
   const t = Number(parts.t);
   if (!Number.isInteger(t) || !parts.v1) return false;
   if (Math.abs(nowSeconds - t) > toleranceSeconds) return false;

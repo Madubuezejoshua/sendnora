@@ -77,8 +77,7 @@ export interface SendTelegramParams {
 }
 
 export type SendTelegramResult =
-  | { sent: true }
-  | { sent: false; reason: 'not_configured' | 'not_linked' | 'send_failed' };
+  { sent: true } | { sent: false; reason: 'not_configured' | 'not_linked' | 'send_failed' };
 
 export async function sendTelegramToCustomer(
   params: SendTelegramParams,
@@ -156,7 +155,10 @@ export async function handleTelegramUpdate(update: TelegramUpdate): Promise<void
       where: { telegramChatId: chatId },
       data: { telegramChatId: null },
     });
-    await sendTelegramText(chatId, "You've been unsubscribed. You won't receive further messages here.");
+    await sendTelegramText(
+      chatId,
+      "You've been unsubscribed. You won't receive further messages here.",
+    );
   } else {
     await sendTelegramText(
       chatId,

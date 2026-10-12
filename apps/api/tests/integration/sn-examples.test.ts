@@ -7,10 +7,24 @@ import { prisma } from '@sendnaro/database';
 import { app, drain, makeBusiness, makeKey } from './sn-helpers.js';
 import { configFromEnv, sendnaro, SendnaroError } from '../../../../examples/node/client.js';
 import { createReceiptForPaidOrder } from '../../../../examples/node/create-invoice.js';
-import { confirmPhoneVerification, readSandboxInbox, startPhoneVerification } from '../../../../examples/node/otp.js';
-import { createTelegramLink, simulateTelegramStart, unlinkTelegram } from '../../../../examples/node/telegram.js';
-import { getDelivery, sendOrderConfirmation } from '../../../../examples/node/deliveries-and-notifications.js';
-import { handleSendnaroWebhook, verifySendnaroSignature } from '../../../../examples/node/verify-webhook.js';
+import {
+  confirmPhoneVerification,
+  readSandboxInbox,
+  startPhoneVerification,
+} from '../../../../examples/node/otp.js';
+import {
+  createTelegramLink,
+  simulateTelegramStart,
+  unlinkTelegram,
+} from '../../../../examples/node/telegram.js';
+import {
+  getDelivery,
+  sendOrderConfirmation,
+} from '../../../../examples/node/deliveries-and-notifications.js';
+import {
+  handleSendnaroWebhook,
+  verifySendnaroSignature,
+} from '../../../../examples/node/verify-webhook.js';
 import { signPayload } from '../../src/sendnaro/webhooks/signing.js';
 
 const run = promisify(execFile); // async: the server under test lives in this same process
@@ -51,8 +65,13 @@ describe('published examples run against the real API', () => {
 
   it('node: create a receipt for a paid order, then read the delivery', async () => {
     const r = await createReceiptForPaidOrder(cfg(), {
-      id: 'order_node_1', paymentReference: 'pay_1', customerId: 'cust_n1', customerName: 'Node Customer',
-      whatsappPhone: '+2348012345678', currency: 'NGN', items: [{ description: 'Widget', quantity: 2, unitAmountMinor: 150000 }],
+      id: 'order_node_1',
+      paymentReference: 'pay_1',
+      customerId: 'cust_n1',
+      customerName: 'Node Customer',
+      whatsappPhone: '+2348012345678',
+      currency: 'NGN',
+      items: [{ description: 'Widget', quantity: 2, unitAmountMinor: 150000 }],
     });
     expect(r.httpStatus).toBe(202);
     await drain(workspaceId);
@@ -65,24 +84,51 @@ describe('published examples run against the real API', () => {
     const { challengeId } = await startPhoneVerification(cfg(), phone, 'user_1');
     const [msg] = await readSandboxInbox(cfg(), phone);
     expect(msg!.challenge_id).toBe(challengeId);
-    const wrong = await confirmPhoneVerification(cfg(), challengeId, phone, msg!.code === '000000' ? '111111' : '000000');
+    const wrong = await confirmPhoneVerification(
+      cfg(),
+      challengeId,
+      phone,
+      msg!.code === '000000' ? '111111' : '000000',
+    );
     expect(wrong).toMatchObject({ verified: false, reason: 'otp_invalid' });
-    expect(await confirmPhoneVerification(cfg(), challengeId, phone, msg!.code)).toEqual({ verified: true });
+    expect(await confirmPhoneVerification(cfg(), challengeId, phone, msg!.code)).toEqual({
+      verified: true,
+    });
   });
 
   it('node: Telegram link -> simulated Start -> unlink', async () => {
     const link = await createTelegramLink(cfg(), 'cust_tg', 'Telegram Customer');
     expect(link.url).toMatch(/^https:\/\/t\.me\//);
     await simulateTelegramStart(cfg(), new URL(link.url).searchParams.get('start')!);
-    expect((await prisma.recipient.findFirstOrThrow({ where: { workspaceId, externalCustomerId: 'cust_tg' } })).telegramChatId).toBe('sandbox_chat_1');
+    expect(
+      (
+        await prisma.recipient.findFirstOrThrow({
+          where: { workspaceId, externalCustomerId: 'cust_tg' },
+        })
+      ).telegramChatId,
+    ).toBe('sandbox_chat_1');
     await unlinkTelegram(cfg(), 'cust_tg');
-    expect((await prisma.recipient.findFirstOrThrow({ where: { workspaceId, externalCustomerId: 'cust_tg' } })).telegramChatId).toBeNull();
+    expect(
+      (
+        await prisma.recipient.findFirstOrThrow({
+          where: { workspaceId, externalCustomerId: 'cust_tg' },
+        })
+      ).telegramChatId,
+    ).toBeNull();
   });
 
   it('node: notification and error handling (SendnaroError carries code and request id)', async () => {
-    const deliveries = await sendOrderConfirmation(cfg(), 'cust_n2', 'Ada', '+2348012345678', 'A-100');
+    const deliveries = await sendOrderConfirmation(
+      cfg(),
+      'cust_n2',
+      'Ada',
+      '+2348012345678',
+      'A-100',
+    );
     expect(deliveries[0]!.channel).toBe('whatsapp');
-    await expect(sendnaro(cfg(), 'GET', '/deliveries/dlv_doesnotexistdoesnotexist')).rejects.toMatchObject({ code: 'not_found', status: 404 });
+    await expect(
+      sendnaro(cfg(), 'GET', '/deliveries/dlv_doesnotexistdoesnotexist'),
+    ).rejects.toMatchObject({ code: 'not_found', status: 404 });
     try {
       await sendnaro({ apiKey: 'sn_test_' + 'x'.repeat(43), baseUrl }, 'GET', '/ping');
     } catch (err) {
@@ -94,12 +140,16 @@ describe('published examples run against the real API', () => {
 
   it('node: webhook verification example accepts good signatures and rejects replays/tampering', () => {
     const secret = 'whsec_example';
-    const raw = Buffer.from(JSON.stringify({ id: 'evt_abc', type: 'delivery.delivered', data: {} }));
+    const raw = Buffer.from(
+      JSON.stringify({ id: 'evt_abc', type: 'delivery.delivered', data: {} }),
+    );
     const header = signPayload(secret, raw.toString('utf8'));
     expect(verifySendnaroSignature(secret, raw, header)).toBe(true);
     expect(handleSendnaroWebhook(secret, raw, header)).toBe(200);
     expect(handleSendnaroWebhook(secret, raw, header)).toBe(200); // duplicate delivery is absorbed
     expect(handleSendnaroWebhook(secret, Buffer.from('{"tampered":1}'), header)).toBe(401);
-    expect(verifySendnaroSignature(secret, raw, signPayload(secret, raw.toString('utf8'), 1_000_000))).toBe(false);
+    expect(
+      verifySendnaroSignature(secret, raw, signPayload(secret, raw.toString('utf8'), 1_000_000)),
+    ).toBe(false);
   });
 });

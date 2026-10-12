@@ -3,7 +3,33 @@
 All notable changes to this project are documented here. Format loosely
 follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased] — First run against a live database — 2026-10-08
+## [Unreleased] — Sendnaro rebuild — 2026-10-12
+
+The product was renamed from InvoiceTap to **Sendnaro** and refocused on an automated transactional messaging and invoice API.
+
+### Added
+- Versioned public API (`/api/v1`): invoices and receipts, WhatsApp OTP, notifications, Telegram linking, deliveries; strict validation,
+  `Idempotency-Key`, per-key scopes and durable rate limits, consistent errors with `request_id`, OpenAPI verified against the router.
+- Durable transactional outbox with crash recovery, retries with backoff and jitter, ambiguity handling (no blind resend), provider
+  receipts, signed SSRF-safe outgoing webhooks, retention cleanup, stand-alone worker.
+- First-class sandbox using the real pipeline with deterministic provider scenarios, watermarked PDFs and a browser playground.
+- Per-business WhatsApp Cloud API connection (encrypted credentials, signed per-business callbacks) and a shared Telegram bot with
+  one-time link tokens.
+- One-time activation billing (Paystack) with owner controls, verified revenue and entitlements. **Billing ships OFF.**
+- Developer console (integration checklist, API keys, deliveries, settings, activation), admin billing panel, redesigned website, docs.
+- Playwright journeys (onboarding, automation, isolation, admin) and API integration suites.
+
+### Changed
+- Package scope `@invoicetap/*` is now `@sendnaro/*`; the manual-invoicing UI and marketing pages were removed. Its API moved to
+  `/api/legacy/v1` and its tables are untouched. Old docs are under `docs/legacy`.
+- PDFs render Latin Extended and Vietnamese-block letters (Ọ, Ẹ, ń) and no longer overlap the price and tax columns.
+- Web dev email sink writes captured messages to `apps/web/.dev-emails/` and refuses to log links in production.
+
+### Fixed
+- Raw SQL compared UTC timestamps with the database's local `now()` (wrong on non-UTC servers); explicit UTC parameters are used.
+- Body-parser failures returned 500; they now return 400/413.
+
+## [Earlier, as InvoiceTap] — First run against a live database — 2026-10-08
 
 ### Fixed (all found by running the integration + E2E suites for the first time)
 - **API routing:** routers mounted at the root used path-less `router.use(requireAuth, ...)`,

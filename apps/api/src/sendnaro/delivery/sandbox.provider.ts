@@ -47,19 +47,36 @@ export const sandboxProvider: ChannelProvider = {
           message: 'Recipient is not reachable on this channel (simulated)',
         };
       case 'permanent_failure':
-        return { kind: 'permanent', code: 'provider_rejected', message: 'Provider rejected the message (simulated)' };
+        return {
+          kind: 'permanent',
+          code: 'provider_rejected',
+          message: 'Provider rejected the message (simulated)',
+        };
       case 'temporary_failure':
         return req.attemptNo <= 2
-          ? { kind: 'transient', code: 'provider_unavailable', message: 'Provider temporarily unavailable (simulated)' }
+          ? {
+              kind: 'transient',
+              code: 'provider_unavailable',
+              message: 'Provider temporarily unavailable (simulated)',
+            }
           : { kind: 'accepted', providerMessageId: id, simulated: true };
       case 'throttled':
         return req.attemptNo <= 1
-          ? { kind: 'throttled', code: 'rate_limited', message: 'Provider throttled the request (simulated)', retryAfterSeconds: 1 }
+          ? {
+              kind: 'throttled',
+              code: 'rate_limited',
+              message: 'Provider throttled the request (simulated)',
+              retryAfterSeconds: 1,
+            }
           : { kind: 'accepted', providerMessageId: id, simulated: true };
       case 'ambiguous_timeout':
       case 'ambiguous_timeout_lost':
         return req.attemptNo <= 1
-          ? { kind: 'ambiguous', code: 'provider_timeout', message: 'Request timed out; acceptance unknown (simulated)' }
+          ? {
+              kind: 'ambiguous',
+              code: 'provider_timeout',
+              message: 'Request timed out; acceptance unknown (simulated)',
+            }
           : { kind: 'accepted', providerMessageId: id, simulated: true };
       default:
         return { kind: 'accepted', providerMessageId: id, simulated: true };

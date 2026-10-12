@@ -50,15 +50,26 @@ export async function createLinkToken(
   });
 
   if (recipient.telegramChatId && !body.force_relink) {
-    throw new AppError('ALREADY_LINKED', 'This customer is already connected to Telegram. Pass force_relink to replace it.');
+    throw new AppError(
+      'ALREADY_LINKED',
+      'This customer is already connected to Telegram. Pass force_relink to replace it.',
+    );
   }
 
   const raw = randomBytes(24).toString('base64url');
   const expiresAt = new Date(Date.now() + LINK_TOKEN_TTL_SECONDS * 1000);
   const record = await prisma.$transaction(async (tx) => {
-    await tx.telegramLinkToken.deleteMany({ where: { recipientId: recipient.id, consumedAt: null } });
+    await tx.telegramLinkToken.deleteMany({
+      where: { recipientId: recipient.id, consumedAt: null },
+    });
     return tx.telegramLinkToken.create({
-      data: { tokenHash: hashToken(raw), workspaceId: ctx.workspaceId, environment: ctx.environment, recipientId: recipient.id, expiresAt },
+      data: {
+        tokenHash: hashToken(raw),
+        workspaceId: ctx.workspaceId,
+        environment: ctx.environment,
+        recipientId: recipient.id,
+        expiresAt,
+      },
     });
   });
 
@@ -97,7 +108,8 @@ export async function consumeLinkToken(input: {
     include: { recipient: true },
   });
   if (!record) return { ok: false, reason: 'invalid' };
-  if (input.workspaceId && record.workspaceId !== input.workspaceId) return { ok: false, reason: 'invalid' };
+  if (input.workspaceId && record.workspaceId !== input.workspaceId)
+    return { ok: false, reason: 'invalid' };
   if (record.environment !== input.environment) return { ok: false, reason: 'wrong_environment' };
   if (record.consumedAt) return { ok: false, reason: 'used' };
   if (record.expiresAt <= new Date()) return { ok: false, reason: 'expired' };
@@ -114,7 +126,11 @@ export async function consumeLinkToken(input: {
     where: { id: record.recipientId },
     data: { telegramChatId: input.chatId, telegramLinkedAt: new Date() },
   });
-  return { ok: true, recipientName: record.recipient.name, replacedChatId: previous && previous !== input.chatId ? previous : undefined };
+  return {
+    ok: true,
+    recipientName: record.recipient.name,
+    replacedChatId: previous && previous !== input.chatId ? previous : undefined,
+  };
 }
 
 export async function unlinkRecipient(ctx: SnContext, externalCustomerId: string) {
@@ -129,9 +145,17 @@ export async function unlinkRecipient(ctx: SnContext, externalCustomerId: string
   });
   if (res.count === 0) throw new AppError('NOT_FOUND', 'No Telegram connection for this customer');
   await prisma.telegramLinkToken.deleteMany({
-    where: { workspaceId: ctx.workspaceId, environment: ctx.environment, recipient: { externalCustomerId }, consumedAt: null },
+    where: {
+      workspaceId: ctx.workspaceId,
+      environment: ctx.environment,
+      recipient: { externalCustomerId },
+      consumedAt: null,
+    },
   });
-  return { status: 200, body: { external_customer_id: externalCustomerId, connected: false, request_id: ctx.requestId } };
+  return {
+    status: 200,
+    body: { external_customer_id: externalCustomerId, connected: false, request_id: ctx.requestId },
+  };
 }
 
 /** User-initiated /stop: removes the chat from every business's mapping. */
@@ -155,14 +179,23 @@ export async function handleBotUpdate(update: {
   if (command.startsWith('/start') && arg) {
     const r = await consumeLinkToken({ token: arg, chatId, environment: 'LIVE' });
     if (r.ok) {
-      await sendTelegramText(chatId, `Hi ${r.recipientName}! You're connected. You'll receive invoices, receipts and order updates here. Send /stop to opt out.`);
+      await sendTelegramText(
+        chatId,
+        `Hi ${r.recipientName}! You're connected. You'll receive invoices, receipts and order updates here. Send /stop to opt out.`,
+      );
       if (r.replacedChatId) {
-        await sendTelegramText(r.replacedChatId, 'This chat was disconnected because the connection was moved to another Telegram account.').catch(() => undefined);
+        await sendTelegramText(
+          r.replacedChatId,
+          'This chat was disconnected because the connection was moved to another Telegram account.',
+        ).catch(() => undefined);
       }
       return true;
     }
     if (r.reason === 'invalid') return false; // maybe a legacy token; let the legacy handler try
-    await sendTelegramText(chatId, 'This link is no longer valid. Please ask the business for a new link.');
+    await sendTelegramText(
+      chatId,
+      'This link is no longer valid. Please ask the business for a new link.',
+    );
     return true;
   }
   if (command.startsWith('/stop')) {

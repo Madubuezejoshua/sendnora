@@ -36,7 +36,8 @@ export async function getBillingSettings(): Promise<BillingSettings> {
 
 export async function saveBillingSettings(patch: Partial<BillingSettings>): Promise<void> {
   const writes: [string, unknown][] = [];
-  if (patch.billingRequired !== undefined) writes.push([KEYS.billingRequired, patch.billingRequired]);
+  if (patch.billingRequired !== undefined)
+    writes.push([KEYS.billingRequired, patch.billingRequired]);
   if (patch.activationPriceMinor !== undefined)
     writes.push([KEYS.activationPriceMinor, patch.activationPriceMinor]);
   if (patch.activationCurrency !== undefined)
@@ -54,7 +55,11 @@ export async function saveBillingSettings(patch: Partial<BillingSettings>): Prom
 export async function seedBillingDefaults(): Promise<void> {
   await prisma.applicationSetting.createMany({
     data: [
-      { key: KEYS.billingRequired, value: false, description: 'Require a paid one-time activation for live sending' },
+      {
+        key: KEYS.billingRequired,
+        value: false,
+        description: 'Require a paid one-time activation for live sending',
+      },
       { key: KEYS.activationCurrency, value: 'NGN', description: 'Activation price currency' },
     ],
     skipDuplicates: true,
@@ -75,7 +80,10 @@ export async function hasActiveEntitlement(workspaceId: string): Promise<boolean
  *  - live + billing disabled     -> allowed
  *  - live + billing enabled      -> allowed only with an active (paid or complimentary) entitlement
  */
-export async function assertCanSend(workspaceId: string, environment: ApiEnvironment): Promise<void> {
+export async function assertCanSend(
+  workspaceId: string,
+  environment: ApiEnvironment,
+): Promise<void> {
   const workspace = await prisma.workspace.findUnique({
     where: { id: workspaceId },
     select: { suspendedAt: true, deletedAt: true },

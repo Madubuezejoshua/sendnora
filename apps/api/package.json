@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "worker": "tsx --env-file-if-exists=.env src/worker.ts",
+    "worker:start": "node --env-file-if-exists=.env dist/worker.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.679.0",

@@ -58,18 +58,21 @@ function ensureFontsRegistered(): void {
     family: 'Noto Sans Vi',
     fonts: [
       {
-        src: requireFont.resolve('@fontsource/noto-sans/files/noto-sans-vietnamese-400-normal.woff'),
+        src: requireFont.resolve(
+          '@fontsource/noto-sans/files/noto-sans-vietnamese-400-normal.woff',
+        ),
         fontWeight: 400,
       },
       {
-        src: requireFont.resolve('@fontsource/noto-sans/files/noto-sans-vietnamese-700-normal.woff'),
+        src: requireFont.resolve(
+          '@fontsource/noto-sans/files/noto-sans-vietnamese-700-normal.woff',
+        ),
         fontWeight: 700,
       },
     ],
   });
   fontsRegistered = true;
 }
-
 
 /**
  * Letters outside the bundled Latin subset render in the matching Noto Sans subset: the Vietnamese block
@@ -83,7 +86,9 @@ function fontForRun(run: string): string {
 function Mixed({ children }: { children: string | undefined }) {
   const parts = String(children ?? '')
     .split(EXT_RUN)
-    .flatMap((part, i) => (i % 2 === 1 ? part.split(/(?<=[Ạ-ỹ])(?=[^Ạ-ỹ])|(?<=[^Ạ-ỹ])(?=[Ạ-ỹ])/) : [part]));
+    .flatMap((part, i) =>
+      i % 2 === 1 ? part.split(/(?<=[Ạ-ỹ])(?=[^Ạ-ỹ])|(?<=[^Ạ-ỹ])(?=[Ạ-ỹ])/) : [part],
+    );
   return (
     <>
       {parts.map((part, i) =>
@@ -191,7 +196,9 @@ export function DocumentPdf({ data }: { data: PdfDocumentData }) {
     <View style={styles.headerBand}>
       <View>
         {data.logoDataUri && <Image src={data.logoDataUri} style={styles.logo} />}
-        <Text style={{ color: '#ffffff', fontSize: 14, fontWeight: 700 }}><Mixed>{data.businessName}</Mixed></Text>
+        <Text style={{ color: '#ffffff', fontSize: 14, fontWeight: 700 }}>
+          <Mixed>{data.businessName}</Mixed>
+        </Text>
       </View>
       <View>
         <Text style={{ color: '#ffffff', fontSize: 20, fontWeight: 700, textAlign: 'right' }}>
@@ -206,7 +213,9 @@ export function DocumentPdf({ data }: { data: PdfDocumentData }) {
     <View style={[styles.row, styles.section]}>
       <View>
         {data.logoDataUri && <Image src={data.logoDataUri} style={styles.logo} />}
-        <Text style={styles.businessName}><Mixed>{data.businessName}</Mixed></Text>
+        <Text style={styles.businessName}>
+          <Mixed>{data.businessName}</Mixed>
+        </Text>
         {data.businessAddressLines.map((line, i) => (
           <Text key={i} style={styles.muted}>
             <Mixed>{line}</Mixed>
@@ -224,7 +233,12 @@ export function DocumentPdf({ data }: { data: PdfDocumentData }) {
     <Document title={`${titleFor(data.kind)} ${data.documentNumber}`}>
       <Page size="A4" style={styles.page}>
         {data.watermarkText && (
-          <Text style={[styles.watermark, data.watermarkColor ? { color: data.watermarkColor, fontSize: 30 } : {}]}>
+          <Text
+            style={[
+              styles.watermark,
+              data.watermarkColor ? { color: data.watermarkColor, fontSize: 30 } : {},
+            ]}
+          >
             {data.watermarkText}
           </Text>
         )}
@@ -371,7 +385,9 @@ export function DocumentPdf({ data }: { data: PdfDocumentData }) {
 
         <View style={styles.footer} fixed>
           <Text style={styles.pageNumber}>
-            {[data.businessTaxId ? `Tax ID: ${data.businessTaxId}` : '', data.poweredByText ?? ''].filter(Boolean).join('  |  ')}
+            {[data.businessTaxId ? `Tax ID: ${data.businessTaxId}` : '', data.poweredByText ?? '']
+              .filter(Boolean)
+              .join('  |  ')}
           </Text>
           {data.qrCodeDataUri && <Image src={data.qrCodeDataUri} style={styles.qr} />}
           <Text

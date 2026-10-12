@@ -23,20 +23,56 @@ export async function runRetention(): Promise<Record<string, number>> {
   out.rateLimitBuckets = await purgeExpiredBuckets();
   out.idempotencyRecords = await purgeExpiredIdempotency();
   out.outboxDone = await purgeFinishedOutbox(14);
-  out.linkTokens = (await prisma.telegramLinkToken.deleteMany({ where: { OR: [{ expiresAt: { lt: days(1) } }, { consumedAt: { lt: days(1) } }] } })).count;
-  out.otpChallenges = (await prisma.otpChallenge.deleteMany({ where: { expiresAt: { lt: days(retentionPolicy.otpAfterExpiryDays) }, status: { not: 'PENDING' } } })).count;
+  out.linkTokens = (
+    await prisma.telegramLinkToken.deleteMany({
+      where: { OR: [{ expiresAt: { lt: days(1) } }, { consumedAt: { lt: days(1) } }] },
+    })
+  ).count;
+  out.otpChallenges = (
+    await prisma.otpChallenge.deleteMany({
+      where: {
+        expiresAt: { lt: days(retentionPolicy.otpAfterExpiryDays) },
+        status: { not: 'PENDING' },
+      },
+    })
+  ).count;
 
   // Sandbox documents: remove the stored PDF first, then the rows.
-  const oldSandbox = await prisma.issuedDocument.findMany({ where: { environment: 'SANDBOX', createdAt: { lt: days(retentionPolicy.sandboxDays) } }, select: { id: true, pdfStorageKey: true }, take: 500 });
+  const oldSandbox = await prisma.issuedDocument.findMany({
+    where: { environment: 'SANDBOX', createdAt: { lt: days(retentionPolicy.sandboxDays) } },
+    select: { id: true, pdfStorageKey: true },
+    take: 500,
+  });
   for (const doc of oldSandbox) {
-    if (doc.pdfStorageKey) await getStorageProvider().deleteObject(doc.pdfStorageKey).catch((err) => logger.warn({ err }, 'Sandbox file delete failed'));
+    if (doc.pdfStorageKey)
+      await getStorageProvider()
+        .deleteObject(doc.pdfStorageKey)
+        .catch((err) => logger.warn({ err }, 'Sandbox file delete failed'));
   }
   const ids = oldSandbox.map((d) => d.id);
   await prisma.delivery.deleteMany({ where: { invoiceId: { in: ids } } });
-  out.sandboxDocuments = (await prisma.issuedDocument.deleteMany({ where: { id: { in: ids } } })).count;
-  out.sandboxDeliveries = (await prisma.delivery.deleteMany({ where: { environment: 'SANDBOX', createdAt: { lt: days(retentionPolicy.sandboxDays) } } })).count;
-  out.sandboxRecipients = (await prisma.recipient.deleteMany({ where: { environment: 'SANDBOX', updatedAt: { lt: days(retentionPolicy.sandboxDays) } } })).count;
-  out.liveDeliveries = (await prisma.delivery.deleteMany({ where: { environment: 'LIVE', createdAt: { lt: days(retentionPolicy.liveDeliveryDays) } } })).count;
-  out.webhookEvents = (await prisma.merchantWebhookEvent.deleteMany({ where: { createdAt: { lt: days(retentionPolicy.webhookEventDays) } } })).count;
+  out.sandboxDocuments = (
+    await prisma.issuedDocument.deleteMany({ where: { id: { in: ids } } })
+  ).count;
+  out.sandboxDeliveries = (
+    await prisma.delivery.deleteMany({
+      where: { environment: 'SANDBOX', createdAt: { lt: days(retentionPolicy.sandboxDays) } },
+    })
+  ).count;
+  out.sandboxRecipients = (
+    await prisma.recipient.deleteMany({
+      where: { environment: 'SANDBOX', updatedAt: { lt: days(retentionPolicy.sandboxDays) } },
+    })
+  ).count;
+  out.liveDeliveries = (
+    await prisma.delivery.deleteMany({
+      where: { environment: 'LIVE', createdAt: { lt: days(retentionPolicy.liveDeliveryDays) } },
+    })
+  ).count;
+  out.webhookEvents = (
+    await prisma.merchantWebhookEvent.deleteMany({
+      where: { createdAt: { lt: days(retentionPolicy.webhookEventDays) } },
+    })
+  ).count;
   return out;
 }

@@ -53,7 +53,10 @@ export const paystackActivationGateway: ActivationGateway = {
         metadata: { purpose: 'sendnaro_activation' },
       }),
     });
-    const json = (await res.json().catch(() => ({}))) as { status?: boolean; data?: { authorization_url?: string } };
+    const json = (await res.json().catch(() => ({}))) as {
+      status?: boolean;
+      data?: { authorization_url?: string };
+    };
     if (!res.ok || !json.status || !json.data?.authorization_url) {
       throw new AppError('SERVICE_UNAVAILABLE', 'Could not start the checkout. Please try again.');
     }
@@ -75,7 +78,14 @@ export const paystackActivationGateway: ActivationGateway = {
     }
     const s = json.data.status;
     return {
-      status: s === 'success' ? 'success' : s === 'failed' ? 'failed' : s === 'abandoned' ? 'abandoned' : 'pending',
+      status:
+        s === 'success'
+          ? 'success'
+          : s === 'failed'
+            ? 'failed'
+            : s === 'abandoned'
+              ? 'abandoned'
+              : 'pending',
       amountMinor: json.data.amount ?? 0,
       currency: (json.data.currency ?? '').toUpperCase(),
       transactionId: String(json.data.id ?? ''),

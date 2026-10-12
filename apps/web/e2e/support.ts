@@ -29,13 +29,23 @@ export async function createOwner(opts: { name?: string; platformAdmin?: boolean
       defaultCurrency: 'NGN',
       onboardingCompletedAt: new Date(),
       members: { create: { userId: user.id, role: 'WORKSPACE_OWNER', joinedAt: new Date() } },
-      businessProfile: { create: { displayName: opts.name ? `${opts.name} Co` : 'E2E Business', contactEmail: 'owner@example.com' } },
+      businessProfile: {
+        create: {
+          displayName: opts.name ? `${opts.name} Co` : 'E2E Business',
+          contactEmail: 'owner@example.com',
+        },
+      },
     },
   });
   return { user, workspace, email };
 }
 
-export async function signIn(page: Page, email: string, password = PASSWORD, landing: RegExp = /\/(console|admin)/) {
+export async function signIn(
+  page: Page,
+  email: string,
+  password = PASSWORD,
+  landing: RegExp = /\/(console|admin)/,
+) {
   await page.goto('/login', { waitUntil: 'networkidle' }); // let React hydrate before submitting
   await page.getByLabel('Email').fill(email);
   await page.getByLabel('Password').fill(password);
@@ -49,11 +59,17 @@ export async function readLatestEmail(to: string, timeoutMs = 20_000): Promise<s
   const safe = to.replace(/[^a-zA-Z0-9@._-]/g, '_');
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith(`-${safe}.txt`)).sort() : [];
+    const files = fs.existsSync(dir)
+      ? fs
+          .readdirSync(dir)
+          .filter((f) => f.endsWith(`-${safe}.txt`))
+          .sort()
+      : [];
     if (files.length) return fs.readFileSync(path.join(dir, files[files.length - 1]!), 'utf8');
     await new Promise((r) => setTimeout(r, 300));
   }
   throw new Error(`No email captured for ${to}`);
 }
 
-export const OBSOLETE_BRANDS = /invoice\s?tap|invoice\s?snap|invoice\s?map|tap\s?relay|tapvello|senaro/i;
+export const OBSOLETE_BRANDS =
+  /invoice\s?tap|invoice\s?snap|invoice\s?map|tap\s?relay|tapvello|senaro/i;

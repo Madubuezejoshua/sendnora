@@ -93,12 +93,18 @@ async function seedPlatformAdmin() {
 async function seedBillingSettings() {
   const result = await prisma.applicationSetting.createMany({
     data: [
-      { key: 'billing_required', value: false, description: 'Require a paid one-time activation for live sending' },
+      {
+        key: 'billing_required',
+        value: false,
+        description: 'Require a paid one-time activation for live sending',
+      },
       { key: 'activation_currency', value: 'NGN', description: 'Activation price currency' },
     ],
     skipDuplicates: true,
   });
-  console.log(`Billing settings: ${result.count} default(s) inserted (billing_required stays whatever the owner chose).`);
+  console.log(
+    `Billing settings: ${result.count} default(s) inserted (billing_required stays whatever the owner chose).`,
+  );
 }
 
 async function main() {

@@ -3,7 +3,8 @@ import type { ApiEnvironment } from '@sendnaro/database';
 export interface SnContext {
   workspaceId: string;
   environment: ApiEnvironment;
-  apiKeyId: string;
+  /** Absent for events that arrive through a signed payment source rather than an API key. */
+  apiKeyId?: string;
   scopes: string[];
   requestId: string;
   ip: string;

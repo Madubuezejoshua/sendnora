@@ -3,7 +3,9 @@ import { prisma } from '@sendnaro/database';
 import { createOwner, signIn } from './support';
 
 test.describe('platform admin and isolation', () => {
-  test('admin billing panel: billing is off by default and cannot be enabled without a ready gateway', async ({ page }) => {
+  test('admin billing panel: billing is off by default and cannot be enabled without a ready gateway', async ({
+    page,
+  }) => {
     const admin = await createOwner({ name: 'Admin Co', platformAdmin: true });
     await signIn(page, admin.email);
     await page.goto('/admin/billing', { waitUntil: 'networkidle' });
@@ -13,12 +15,19 @@ test.describe('platform admin and isolation', () => {
     await expect(page.getByText('Payment gateway secret key is not configured')).toBeVisible();
 
     await page.getByRole('button', { name: 'Require activation payments…' }).click();
-    await expect(page.getByText('Every business without a verified one-time activation will be blocked')).toBeVisible();
+    await expect(
+      page.getByText('Every business without a verified one-time activation will be blocked'),
+    ).toBeVisible();
     await page.getByRole('button', { name: 'Require activation' }).click();
     await expect(page.getByText(/billing_not_ready|Could not save/).first()).toBeVisible(); // failed safely
     await page.keyboard.press('Escape');
-    expect((await prisma.applicationSetting.findUnique({ where: { key: 'billing_required' } }))?.value).not.toBe(true);
-    await page.screenshot({ path: '../../test-evidence/screens/admin-billing.png', fullPage: true });
+    expect(
+      (await prisma.applicationSetting.findUnique({ where: { key: 'billing_required' } }))?.value,
+    ).not.toBe(true);
+    await page.screenshot({
+      path: '../../test-evidence/screens/admin-billing.png',
+      fullPage: true,
+    });
 
     // The public site and the console agree: no activation fee.
     await page.goto('/pricing');
@@ -42,13 +51,36 @@ test.describe('platform admin and isolation', () => {
     await ctx.close();
   });
 
-  test("a business cannot see another business's deliveries, documents or keys", async ({ page, browser }) => {
+  test("a business cannot see another business's deliveries, documents or keys", async ({
+    page,
+    browser,
+  }) => {
     const a = await createOwner({ name: 'Alpha' });
     const b = await createOwner({ name: 'Bravo' });
     const delivery = await prisma.delivery.create({
-      data: { workspaceId: a.workspace.id, environment: 'SANDBOX', kind: 'NOTIFICATION', channel: 'WHATSAPP', status: 'SANDBOX_SIMULATED', toAddress: '+2348012345678', templateKey: 'order_confirmation', simulated: true },
+      data: {
+        workspaceId: a.workspace.id,
+        environment: 'SANDBOX',
+        kind: 'NOTIFICATION',
+        channel: 'WHATSAPP',
+        status: 'SANDBOX_SIMULATED',
+        toAddress: '+2348012345678',
+        templateKey: 'order_confirmation',
+        simulated: true,
+      },
     });
-    const key = await prisma.apiKey.create({ data: { workspaceId: a.workspace.id, createdById: a.user.id, name: 'Alpha key', environment: 'SANDBOX', prefix: 'sn_test_abcd', lastFour: 'wxyz', hashedKey: `hash-${a.workspace.id}`, scopes: ['deliveries:read'] } });
+    const key = await prisma.apiKey.create({
+      data: {
+        workspaceId: a.workspace.id,
+        createdById: a.user.id,
+        name: 'Alpha key',
+        environment: 'SANDBOX',
+        prefix: 'sn_test_abcd',
+        lastFour: 'wxyz',
+        hashedKey: `hash-${a.workspace.id}`,
+        scopes: ['deliveries:read'],
+      },
+    });
 
     await signIn(page, a.email);
     await page.goto('/console/deliveries', { waitUntil: 'networkidle' });
@@ -66,15 +98,29 @@ test.describe('platform admin and isolation', () => {
     await ctx.close();
   });
 
-  test('the browser relay refuses live keys, unauthenticated use and unknown endpoints', async ({ page, request }) => {
+  test('the browser relay refuses live keys, unauthenticated use and unknown endpoints', async ({
+    page,
+    request,
+  }) => {
     const liveLike = `sn_live_${'a'.repeat(43)}`;
-    expect((await request.get('/api/sandbox/ping', { headers: { 'X-Sandbox-Key': `sn_test_${'a'.repeat(43)}` }, maxRedirects: 0 })).status()).toBe(307); // not signed in: redirected to sign in
+    expect(
+      (
+        await request.get('/api/sandbox/ping', {
+          headers: { 'X-Sandbox-Key': `sn_test_${'a'.repeat(43)}` },
+          maxRedirects: 0,
+        })
+      ).status(),
+    ).toBe(307); // not signed in: redirected to sign in
     const owner = await createOwner({ name: 'Relay' });
     await signIn(page, owner.email);
-    const live = await page.request.get('/api/sandbox/ping', { headers: { 'X-Sandbox-Key': liveLike } });
+    const live = await page.request.get('/api/sandbox/ping', {
+      headers: { 'X-Sandbox-Key': liveLike },
+    });
     expect(live.status()).toBe(403);
     expect((await live.json()).error.code).toBe('sandbox_only');
-    const unknown = await page.request.get('/api/sandbox/admin/stats', { headers: { 'X-Sandbox-Key': `sn_test_${'a'.repeat(43)}` } });
+    const unknown = await page.request.get('/api/sandbox/admin/stats', {
+      headers: { 'X-Sandbox-Key': `sn_test_${'a'.repeat(43)}` },
+    });
     expect(unknown.status()).toBe(404);
   });
 });

@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/index.ts', 'src/vercel.ts'],
+  entry: ['src/index.ts', 'src/vercel.ts', 'src/worker.ts'],
   format: ['esm'],
   target: 'node20',
   outDir: 'dist',

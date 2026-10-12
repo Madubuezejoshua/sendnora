@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isCrossSiteWrite } from '@/lib/same-origin';
 import { auth } from '@/auth';
 import { getWebEnv } from '@/lib/env';
 
@@ -12,20 +13,37 @@ import { getWebEnv } from '@/lib/env';
 const ALLOWED = /^(ping|invoices|otp|notifications|deliveries|telegram|sandbox)(\/|$)/;
 
 async function relay(req: NextRequest, path: string[]): Promise<NextResponse> {
+  if (isCrossSiteWrite(req)) {
+    return NextResponse.json(
+      { error: { code: 'FORBIDDEN', message: 'Cross-site request blocked' } },
+      { status: 403 },
+    );
+  }
   const session = await auth();
   if (!session?.user) {
-    return NextResponse.json({ error: { code: 'unauthenticated', message: 'Sign in to use the playground' } }, { status: 401 });
+    return NextResponse.json(
+      { error: { code: 'unauthenticated', message: 'Sign in to use the playground' } },
+      { status: 401 },
+    );
   }
   const key = req.headers.get('x-sandbox-key') ?? '';
   if (!/^sn_test_[A-Za-z0-9_-]{43}$/.test(key)) {
     return NextResponse.json(
-      { error: { code: 'sandbox_only', message: 'The playground only accepts sandbox keys (sn_test_...)' } },
+      {
+        error: {
+          code: 'sandbox_only',
+          message: 'The playground only accepts sandbox keys (sn_test_...)',
+        },
+      },
       { status: 403 },
     );
   }
   const joined = path.join('/');
   if (!ALLOWED.test(joined)) {
-    return NextResponse.json({ error: { code: 'not_found', message: 'Unknown endpoint' } }, { status: 404 });
+    return NextResponse.json(
+      { error: { code: 'not_found', message: 'Unknown endpoint' } },
+      { status: 404 },
+    );
   }
 
   const env = getWebEnv();

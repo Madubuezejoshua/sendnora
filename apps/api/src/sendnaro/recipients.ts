@@ -48,7 +48,10 @@ export async function assertChannelsReady(ctx: SnContext, channels: ChannelName[
         );
       }
     } else if (!parseApiEnv().TELEGRAM_BOT_TOKEN) {
-      throw new AppError('SETUP_REQUIRED', 'setup_required: the Telegram bot is not configured on this deployment');
+      throw new AppError(
+        'SETUP_REQUIRED',
+        'setup_required: the Telegram bot is not configured on this deployment',
+      );
     }
   }
 }
@@ -60,7 +63,9 @@ export async function upsertRecipient(
   consentWhatsapp: boolean | undefined,
   defaultCountry?: string,
 ): Promise<Recipient> {
-  const phone = customer.whatsapp_phone ? toE164(customer.whatsapp_phone, defaultCountry) : undefined;
+  const phone = customer.whatsapp_phone
+    ? toE164(customer.whatsapp_phone, defaultCountry)
+    : undefined;
   const key = {
     workspaceId_environment_externalCustomerId: {
       workspaceId: ctx.workspaceId,
@@ -84,7 +89,11 @@ export async function upsertRecipient(
   }
   return tx.recipient.update({
     where: key,
-    data: { name: customer.name, ...(phone ? { whatsappPhone: phone } : {}), ...(consentAt ? { whatsappConsentAt: consentAt } : {}) },
+    data: {
+      name: customer.name,
+      ...(phone ? { whatsappPhone: phone } : {}),
+      ...(consentAt ? { whatsappConsentAt: consentAt } : {}),
+    },
   });
 }
 
@@ -97,7 +106,7 @@ export function assertRecipientCanUse(recipient: Recipient, channels: ChannelNam
     if (!recipient.whatsappConsentAt) {
       throw new AppError(
         'CONSENT_REQUIRED',
-        'consent.whatsapp_transactional must be true: record the customer\'s permission for transactional WhatsApp messages',
+        "consent.whatsapp_transactional must be true: record the customer's permission for transactional WhatsApp messages",
       );
     }
   }
@@ -127,7 +136,9 @@ export async function createChannelDeliveries(
   const out: Delivery[] = [];
   for (const channel of input.channels) {
     const isWa = channel === 'whatsapp';
-    const toAddress = isWa ? input.recipient.whatsappPhone! : (input.recipient.telegramChatId ?? '');
+    const toAddress = isWa
+      ? input.recipient.whatsappPhone!
+      : (input.recipient.telegramChatId ?? '');
     const notConnected = !isWa && !input.recipient.telegramChatId;
 
     const delivery = await tx.delivery.create({
@@ -145,7 +156,11 @@ export async function createChannelDeliveries(
         requestId: ctx.requestId || null,
         apiKeyId: ctx.apiKeyId,
         ...(notConnected
-          ? { lastErrorCode: 'telegram_not_connected', lastErrorMessage: 'The customer has not connected Telegram', failedAt: new Date() }
+          ? {
+              lastErrorCode: 'telegram_not_connected',
+              lastErrorMessage: 'The customer has not connected Telegram',
+              failedAt: new Date(),
+            }
           : {}),
       },
     });
@@ -177,7 +192,9 @@ export async function createChannelDeliveries(
   return out;
 }
 
-export function publicDelivery(d: Pick<Delivery, 'id' | 'channel' | 'status' | 'simulated' | 'lastErrorCode'>) {
+export function publicDelivery(
+  d: Pick<Delivery, 'id' | 'channel' | 'status' | 'simulated' | 'lastErrorCode'>,
+) {
   return {
     id: publicId('delivery', d.id),
     channel: d.channel.toLowerCase(),

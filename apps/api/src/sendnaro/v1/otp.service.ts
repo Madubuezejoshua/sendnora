@@ -6,7 +6,12 @@ import { parsePublicId, publicId } from '../ids.js';
 import { enforce, RateLimitedError } from '../limits.js';
 import { enqueue } from '../outbox.js';
 import { codesMatch, computeOtpCode, newSeed } from '../otp/code.js';
-import { assertChannelsReady, assertScenarioAllowed, publicDelivery, toE164 } from '../recipients.js';
+import {
+  assertChannelsReady,
+  assertScenarioAllowed,
+  publicDelivery,
+  toE164,
+} from '../recipients.js';
 import { emitWebhookEvent } from '../webhooks/dispatch.js';
 
 export const otpPolicy = {
@@ -24,10 +29,7 @@ function maskPhone(e164: string): string {
   return `${e164.slice(0, 4)}${'*'.repeat(Math.max(0, e164.length - 7))}${e164.slice(-3)}`;
 }
 
-function presentChallenge(
-  c: OtpChallenge,
-  extra: Record<string, unknown> = {},
-) {
+function presentChallenge(c: OtpChallenge, extra: Record<string, unknown> = {}) {
   return {
     id: publicId('otp', c.id),
     object: 'otp_challenge',
@@ -72,10 +74,25 @@ export async function createChallenge(
   // Shared, durable limits (Postgres). Order matters: cheap global guards first.
   const scope = `${ctx.workspaceId}:${ctx.environment}`;
   await enforce(`otp:t:${scope}`, otpPolicy.perTenantPerMinute, 60, 'verification requests');
-  await enforce(`otp:ip:${scope}:${ctx.ip}`, otpPolicy.perIpPerMinute, 60, 'verification requests from this address');
-  await enforce(`otp:r:${scope}:${phone}`, otpPolicy.perRecipientPerHour, 3600, 'codes for this number');
+  await enforce(
+    `otp:ip:${scope}:${ctx.ip}`,
+    otpPolicy.perIpPerMinute,
+    60,
+    'verification requests from this address',
+  );
+  await enforce(
+    `otp:r:${scope}:${phone}`,
+    otpPolicy.perRecipientPerHour,
+    3600,
+    'codes for this number',
+  );
   const cd = await prisma.otpChallenge.findFirst({
-    where: { workspaceId: ctx.workspaceId, environment: ctx.environment, recipientPhone: phone, purpose: body.purpose },
+    where: {
+      workspaceId: ctx.workspaceId,
+      environment: ctx.environment,
+      recipientPhone: phone,
+      purpose: body.purpose,
+    },
     orderBy: { createdAt: 'desc' },
     select: { createdAt: true },
   });
@@ -85,12 +102,20 @@ export async function createChallenge(
   }
 
   const expiresAt =
-    scenario === 'expired_otp' ? new Date(Date.now() - 1000) : new Date(Date.now() + otpPolicy.ttlSeconds * 1000);
+    scenario === 'expired_otp'
+      ? new Date(Date.now() - 1000)
+      : new Date(Date.now() + otpPolicy.ttlSeconds * 1000);
 
   const { challenge, delivery } = await prisma.$transaction(async (tx) => {
     // A new request invalidates every earlier pending code for this recipient + purpose.
     await tx.otpChallenge.updateMany({
-      where: { workspaceId: ctx.workspaceId, environment: ctx.environment, recipientPhone: phone, purpose: body.purpose, status: 'PENDING' },
+      where: {
+        workspaceId: ctx.workspaceId,
+        environment: ctx.environment,
+        recipientPhone: phone,
+        purpose: body.purpose,
+        status: 'PENDING',
+      },
       data: { status: 'SUPERSEDED' },
     });
     const challenge = await tx.otpChallenge.create({
@@ -134,7 +159,11 @@ export async function createChallenge(
 
   return {
     status: 202,
-    body: { ...presentChallenge(challenge), delivery: publicDelivery(delivery), request_id: ctx.requestId },
+    body: {
+      ...presentChallenge(challenge),
+      delivery: publicDelivery(delivery),
+      request_id: ctx.requestId,
+    },
   };
 }
 
@@ -149,7 +178,8 @@ export async function resendChallenge(ctx: SnContext, publicChallengeId: string)
     throw new AppError('OTP_LOCKED', 'Resend limit reached; create a new challenge');
   }
   if (current.lastSentAt) {
-    const waitMs = otpPolicy.resendCooldownSeconds * 1000 - (Date.now() - current.lastSentAt.getTime());
+    const waitMs =
+      otpPolicy.resendCooldownSeconds * 1000 - (Date.now() - current.lastSentAt.getTime());
     if (waitMs > 0) throw new RateLimitedError('resend requests', Math.ceil(waitMs / 1000));
   }
   await enforce(
@@ -190,7 +220,14 @@ export async function resendChallenge(ctx: SnContext, publicChallengeId: string)
     });
     return { challenge, delivery };
   });
-  return { status: 202, body: { ...presentChallenge(challenge), delivery: publicDelivery(delivery), request_id: ctx.requestId } };
+  return {
+    status: 202,
+    body: {
+      ...presentChallenge(challenge),
+      delivery: publicDelivery(delivery),
+      request_id: ctx.requestId,
+    },
+  };
 }
 
 export async function verifyChallenge(
@@ -198,11 +235,19 @@ export async function verifyChallenge(
   publicChallengeId: string,
   body: { code: string; phone: string; purpose: string },
 ) {
-  await enforce(`otpv:ip:${ctx.workspaceId}:${ctx.environment}:${ctx.ip}`, otpPolicy.perIpPerMinute * 2, 60, 'verification attempts');
+  await enforce(
+    `otpv:ip:${ctx.workspaceId}:${ctx.environment}:${ctx.ip}`,
+    otpPolicy.perIpPerMinute * 2,
+    60,
+    'verification attempts',
+  );
   const id = parsePublicId('otp', publicChallengeId);
   if (!id) throw new AppError('NOT_FOUND', 'Challenge not found');
 
-  const workspace = await prisma.workspace.findUniqueOrThrow({ where: { id: ctx.workspaceId }, select: { countryCode: true } });
+  const workspace = await prisma.workspace.findUniqueOrThrow({
+    where: { id: ctx.workspaceId },
+    select: { countryCode: true },
+  });
   let phone: string;
   try {
     phone = toE164(body.phone, workspace.countryCode);
@@ -224,14 +269,21 @@ export async function verifyChallenge(
 
   if (!row) {
     const c = await prisma.otpChallenge.findFirst({
-      where: { id, workspaceId: ctx.workspaceId, environment: ctx.environment, recipientPhone: phone, purpose: body.purpose },
+      where: {
+        id,
+        workspaceId: ctx.workspaceId,
+        environment: ctx.environment,
+        recipientPhone: phone,
+        purpose: body.purpose,
+      },
     });
     if (!c) throw new AppError('NOT_FOUND', 'Challenge not found');
     if (c.status === 'VERIFIED') throw new AppError('OTP_INVALID', 'This code was already used');
     if (c.status === 'LOCKED' || c.attemptCount >= c.maxAttempts) {
       throw new AppError('OTP_LOCKED', 'Too many incorrect attempts; request a new code');
     }
-    if (c.status === 'SUPERSEDED') throw new AppError('OTP_EXPIRED', 'A newer code was requested; use the latest one');
+    if (c.status === 'SUPERSEDED')
+      throw new AppError('OTP_EXPIRED', 'A newer code was requested; use the latest one');
     throw new AppError('OTP_EXPIRED', 'This code has expired; request a new one');
   }
 
@@ -239,10 +291,16 @@ export async function verifyChallenge(
   if (body.code.length !== row.codeLength || !codesMatch(expected, body.code)) {
     const remaining = row.maxAttempts - row.attemptCount;
     if (remaining <= 0) {
-      await prisma.otpChallenge.updateMany({ where: { id: row.id, status: 'PENDING' }, data: { status: 'LOCKED' } });
+      await prisma.otpChallenge.updateMany({
+        where: { id: row.id, status: 'PENDING' },
+        data: { status: 'LOCKED' },
+      });
       throw new AppError('OTP_LOCKED', 'Too many incorrect attempts; request a new code');
     }
-    throw new AppError('OTP_INVALID', `Incorrect code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining`);
+    throw new AppError(
+      'OTP_INVALID',
+      `Incorrect code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining`,
+    );
   }
 
   // Single-use: only one concurrent winner can flip PENDING -> VERIFIED.
@@ -256,12 +314,23 @@ export async function verifyChallenge(
       workspaceId: ctx.workspaceId,
       environment: ctx.environment,
       type: 'otp.verified',
-      data: { challenge_id: publicId('otp', row.id), outcome: 'verified', purpose: row.purpose, customer_ref: row.customerRef ?? undefined },
+      data: {
+        challenge_id: publicId('otp', row.id),
+        outcome: 'verified',
+        purpose: row.purpose,
+        customer_ref: row.customerRef ?? undefined,
+      },
     });
     return tx.otpChallenge.findUniqueOrThrow({ where: { id: row.id } });
   });
   if (!verified) throw new AppError('OTP_INVALID', 'This code was already used');
-  return { status: 200, body: { ...presentChallenge(verified, { verified_at: verified.verifiedAt?.toISOString() }), request_id: ctx.requestId } };
+  return {
+    status: 200,
+    body: {
+      ...presentChallenge(verified, { verified_at: verified.verifiedAt?.toISOString() }),
+      request_id: ctx.requestId,
+    },
+  };
 }
 
 /** Sandbox-only: the codes a simulated phone would have received. Unreachable with a live key. */
@@ -269,10 +338,18 @@ export async function sandboxInbox(ctx: SnContext, rawPhone?: string) {
   if (ctx.environment !== 'SANDBOX') {
     throw new AppError('SANDBOX_ONLY', 'The test inbox is only available with sandbox keys');
   }
-  const workspace = await prisma.workspace.findUniqueOrThrow({ where: { id: ctx.workspaceId }, select: { countryCode: true } });
+  const workspace = await prisma.workspace.findUniqueOrThrow({
+    where: { id: ctx.workspaceId },
+    select: { countryCode: true },
+  });
   const phone = rawPhone ? toE164(rawPhone, workspace.countryCode) : undefined;
   const challenges = await prisma.otpChallenge.findMany({
-    where: { workspaceId: ctx.workspaceId, environment: 'SANDBOX', status: 'PENDING', ...(phone ? { recipientPhone: phone } : {}) },
+    where: {
+      workspaceId: ctx.workspaceId,
+      environment: 'SANDBOX',
+      status: 'PENDING',
+      ...(phone ? { recipientPhone: phone } : {}),
+    },
     orderBy: { createdAt: 'desc' },
     take: 20,
   });
