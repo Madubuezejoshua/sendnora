@@ -1,22 +1,24 @@
 import { useState, type FormEvent } from 'react';
-import { X, Shield, KeyRound, ArrowRight } from 'lucide-react';
+import { X, Shield } from 'lucide-react';
 import { apiRequest, setSessionToken, type SessionUser } from '../lib/api';
 import { BrandMark } from './BrandMark';
 
 type AuthMode = 'signin' | 'register' | 'claim_admin';
 
 export function AuthModal({
+  initialMode = 'signin',
   adminClaimRequired,
   adminEmailHint,
   onClose,
   onAuthenticated,
 }: {
+  initialMode?: 'signin' | 'register';
   adminClaimRequired: boolean;
   adminEmailHint: string;
   onClose: () => void;
   onAuthenticated: (user: SessionUser, starterSandboxKey?: string) => void;
 }) {
-  const [mode, setMode] = useState<AuthMode>('signin');
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -81,7 +83,6 @@ export function AuthModal({
     const res = await apiRequest<{
       token: string;
       user: SessionUser;
-      starterSandboxKey?: string;
     }>('/api/auth/claim-admin', {
       method: 'POST',
       body: { email: adminEmail, password: adminPassword },
@@ -89,26 +90,9 @@ export function AuthModal({
     setBusy(false);
     if (res.ok && res.data) {
       setSessionToken(res.data.token);
-      onAuthenticated(res.data.user, res.data.starterSandboxKey);
+      onAuthenticated(res.data.user);
     } else {
       setError(res.error?.message || 'Could not claim platform admin access');
-    }
-  };
-
-  const handleSandboxDemo = async () => {
-    setBusy(true);
-    setError(null);
-    const res = await apiRequest<{
-      token: string;
-      user: SessionUser;
-      starterSandboxKey?: string;
-    }>('/api/auth/sandbox-demo', { method: 'POST' });
-    setBusy(false);
-    if (res.ok && res.data) {
-      setSessionToken(res.data.token);
-      onAuthenticated(res.data.user, res.data.starterSandboxKey);
-    } else {
-      setError(res.error?.message || 'Could not start sandbox session');
     }
   };
 
@@ -354,19 +338,6 @@ export function AuthModal({
                   : 'Claim Platform Admin access'}
           </button>
         </form>
-
-        <div className="mt-5 border-t border-white/[0.08] pt-5">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={handleSandboxDemo}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/12 bg-[#070A08] px-4 py-2.5 text-xs font-medium text-[#E6ECE7] transition-colors hover:border-white/20 hover:bg-white/[0.04]"
-          >
-            <KeyRound className="h-3.5 w-3.5 text-[#22C55E]" />
-            Continue as Sandbox Merchant (Kora Market)
-            <ArrowRight className="h-3.5 w-3.5 text-[#7F8D82]" />
-          </button>
-        </div>
       </div>
     </div>
   );

@@ -1,16 +1,11 @@
 import crypto from 'node:crypto';
 import {
-  API_SCOPES,
   type ApiEnvironment,
   type ApiScope,
   assertNotificationLinksAllowed,
   computeOtpCode,
-  encryptSecret,
-  generateApiKey,
-  generateWebhookSecret,
   hashPassword,
   hashSha256,
-  maskSecret,
   newOtpSeed,
   signWebhookPayload,
   verifyOtpCode,
@@ -82,6 +77,8 @@ export interface WorkspaceRecord {
   ownerUserId: string;
   displayName: string;
   contactEmail: string;
+  contactPhone?: string;
+  country?: string;
   countryCode: string;
   currency: 'NGN' | 'USD' | 'GBP' | 'EUR' | 'KES' | 'GHS';
   allowedLinkOrigins: string[];
@@ -390,7 +387,7 @@ class SendnaroStore {
 
   billingSettings: BillingSettingsRecord = {
     billingRequired: false,
-    activationPriceMinor: 7500000, // ₦75,000.00 annual subscription for Nigerian businesses (~$100 USD equivalent)
+    activationPriceMinor: 6000000, // ₦60,000.00 annual Starter plan for Nigerian businesses
     activationCurrency: 'NGN',
     gatewayMode: process.env.ACTIVATION_PAYSTACK_SECRET_KEY?.startsWith('sk_live_') ? 'LIVE' : 'TEST',
     updatedAt: new Date().toISOString(),
@@ -399,11 +396,7 @@ class SendnaroStore {
   adminClaimed = false;
   adminEmail = process.env.PLATFORM_ADMIN_EMAIL?.trim().toLowerCase() || 'admin@sendnaro.com';
 
-  // Starter sandbox key generated on boot for demo merchant workspace (in-memory only)
-  starterWorkspaceId = 'ws_acme_commerce';
-  starterSandboxKeyPlaintext = '';
-
-  private invoiceCounter = 1042;
+  private invoiceCounter = 1000;
 
   constructor() {
     this.seedInitialData();
@@ -418,11 +411,10 @@ class SendnaroStore {
   }
 
   private seedInitialData() {
-    const now = Date.now();
-    const iso = (offsetMs = 0) => new Date(now + offsetMs).toISOString();
-
-    // Seed platform admin user if PLATFORM_ADMIN_PASSWORD is configured via env
+    // Production-clean boot: zero pre-seeded demo businesses, deliveries, invoices, or logs.
+    // Only bootstrap the Platform Admin account if PLATFORM_ADMIN_PASSWORD is set in env.
     if (this.hasEnvAdminPassword()) {
+      const now = new Date().toISOString();
       const adminUser: UserRecord = {
         id: 'usr_platform_admin',
         email: this.adminEmail,
@@ -430,228 +422,32 @@ class SendnaroStore {
         passwordHash: hashPassword(process.env.PLATFORM_ADMIN_PASSWORD!.trim()),
         isPlatformAdmin: true,
         emailVerified: true,
-        createdAt: iso(-86400_000 * 30),
+        createdAt: now,
       };
       this.users.set(adminUser.id, adminUser);
       this.adminClaimed = true;
+      this.ensureAdminWorkspace(adminUser);
     }
+  }
 
-    // Seed a realistic merchant workspace (Lagos Pay & Commerce Ltd.) for immediate preview exploration
-    const merchantWorkspace: WorkspaceRecord = {
-      id: this.starterWorkspaceId,
-      name: 'Kora Market Logistics',
-      ownerUserId: 'usr_demo_merchant',
-      displayName: 'Kora Market Logistics',
-      contactEmail: 'ops@koramarket.example',
+  ensureAdminWorkspace(adminUser: UserRecord): WorkspaceRecord {
+    for (const ws of this.workspaces.values()) {
+      if (ws.ownerUserId === adminUser.id) return ws;
+    }
+    const ws: WorkspaceRecord = {
+      id: 'ws_platform_owner',
+      name: 'Sendnaro Platform',
+      ownerUserId: adminUser.id,
+      displayName: 'Sendnaro Platform',
+      contactEmail: adminUser.email,
+      country: 'Nigeria',
       countryCode: 'NG',
       currency: 'NGN',
-      allowedLinkOrigins: ['koramarket.example', 'track.koramarket.example'],
-      createdAt: iso(-86400_000 * 14),
+      allowedLinkOrigins: [],
+      createdAt: new Date().toISOString(),
     };
-    this.workspaces.set(merchantWorkspace.id, merchantWorkspace);
-
-    // Secondary workspace for admin governance view
-    const secondWs: WorkspaceRecord = {
-      id: 'ws_verve_studios',
-      name: 'Verve Print & Dispatch',
-      ownerUserId: 'usr_verve_owner',
-      displayName: 'Verve Print & Dispatch',
-      contactEmail: 'billing@verveprint.example',
-      countryCode: 'NG',
-      currency: 'NGN',
-      allowedLinkOrigins: ['verveprint.example'],
-      createdAt: iso(-86400_000 * 9),
-    };
-    this.workspaces.set(secondWs.id, secondWs);
-
-    // Grant complimentary entitlement to Verve Print so admin table shows real rows
-    this.entitlements.set(secondWs.id, {
-      workspaceId: secondWs.id,
-      source: 'COMPLIMENTARY',
-      grantedAt: iso(-86400_000 * 6),
-      note: 'Early pilot partner cohort',
-    });
-
-    // Provision a real working sandbox API key for the starter workspace
-    const generated = generateApiKey('SANDBOX');
-    this.starterSandboxKeyPlaintext = generated.key;
-    const starterKey: ApiKeyRecord = {
-      id: 'key_sandbox_starter',
-      workspaceId: merchantWorkspace.id,
-      name: 'Sandbox Playground Key',
-      environment: 'SANDBOX',
-      prefix: generated.prefix,
-      lastFour: generated.lastFour,
-      hashedKey: generated.hash,
-      scopes: [...API_SCOPES],
-      rateLimitPerMinute: 120,
-      createdAt: iso(-86400_000 * 5),
-      lastUsedAt: iso(-300_000),
-    };
-    this.apiKeys.set(starterKey.id, starterKey);
-
-    // Seed encrypted sample webhook endpoint
-    const whSecret = generateWebhookSecret();
-    const whId = 'wh_kora_orders';
-    this.webhookEndpoints.set(whId, {
-      id: whId,
-      workspaceId: merchantWorkspace.id,
-      environment: 'SANDBOX',
-      url: 'https://hooks.koramarket.example/sendnaro',
-      events: ['invoice.created', 'delivery.delivered', 'delivery.failed', 'otp.verified'],
-      active: true,
-      secretCiphertext: encryptSecret(whSecret),
-      secretMask: maskSecret(whSecret),
-      createdAt: iso(-86400_000 * 4),
-      lastDeliveredAt: iso(-900_000),
-      lastStatus: 200,
-    });
-
-    // Seed sample historical deliveries & invoices for rich initial console state
-    const inv1Id = 'inv_seed_1041';
-    const inv1PublicToken = crypto.randomBytes(18).toString('base64url');
-    const del1Id = 'del_seed_001';
-    const inv1: InvoiceRecord = {
-      id: inv1Id,
-      publicId: 'inv_1041a8f2',
-      publicToken: inv1PublicToken,
-      workspaceId: merchantWorkspace.id,
-      environment: 'SANDBOX',
-      invoiceNumber: 'INV-2026-1041',
-      reference: 'ORD-88241',
-      customerName: 'Amaka Okafor',
-      customerPhone: '+2348012345678',
-      customerEmail: 'amaka@example.com',
-      externalCustomerId: 'customer_42',
-      currency: 'NGN',
-      items: [
-        {
-          description: 'Express Lagos Island Parcel Delivery (4x)',
-          quantity: 4,
-          unitPriceMinor: 350000,
-          lineTotalMinor: 1400000,
-        },
-        {
-          description: 'Cold-Chain Handling Surcharge',
-          quantity: 1,
-          unitPriceMinor: 150000,
-          lineTotalMinor: 150000,
-        },
-      ],
-      subtotalMinor: 1550000,
-      taxMinor: 116250,
-      discountMinor: 0,
-      totalMinor: 1666250,
-      status: 'PAID',
-      notes: 'Paid via Paystack checkout #PS-99402',
-      createdAt: iso(-3600_000 * 3),
-      deliveryIds: [del1Id],
-    };
-    this.invoices.set(inv1.id, inv1);
-
-    this.deliveries.set(del1Id, {
-      id: del1Id,
-      publicId: 'del_9f31c0a2',
-      workspaceId: merchantWorkspace.id,
-      environment: 'SANDBOX',
-      kind: 'INVOICE',
-      channel: 'WHATSAPP',
-      recipientLabel: '+2348012345678',
-      status: 'DELIVERED',
-      simulated: true,
-      scenario: 'success',
-      invoiceId: inv1.id,
-      messagePreview: `Receipt ${inv1.invoiceNumber} (${formatMinorUnits(inv1.totalMinor, inv1.currency)}) sent to Amaka Okafor`,
-      attempts: [
-        {
-          attempt: 1,
-          outcome: 'accepted',
-          message: 'Accepted by sandbox WhatsApp simulator',
-          at: iso(-3600_000 * 3 + 1200),
-        },
-      ],
-      createdAt: iso(-3600_000 * 3),
-      sentAt: iso(-3600_000 * 3 + 1200),
-      deliveredAt: iso(-3600_000 * 3 + 3800),
-    });
-
-    const del2Id = 'del_seed_002';
-    this.deliveries.set(del2Id, {
-      id: del2Id,
-      publicId: 'del_4c82b11e',
-      workspaceId: merchantWorkspace.id,
-      environment: 'SANDBOX',
-      kind: 'OTP',
-      channel: 'WHATSAPP',
-      recipientLabel: '+2348098765432',
-      status: 'DELIVERED',
-      simulated: true,
-      scenario: 'success',
-      messagePreview: 'Verification code for login (code redacted from logs)',
-      attempts: [
-        {
-          attempt: 1,
-          outcome: 'accepted',
-          message: 'Accepted by sandbox WhatsApp simulator',
-          at: iso(-1800_000 + 800),
-        },
-      ],
-      createdAt: iso(-1800_000),
-      sentAt: iso(-1800_000 + 800),
-      deliveredAt: iso(-1800_000 + 2100),
-    });
-
-    const del3Id = 'del_seed_003';
-    this.deliveries.set(del3Id, {
-      id: del3Id,
-      publicId: 'del_7a19e50d',
-      workspaceId: merchantWorkspace.id,
-      environment: 'SANDBOX',
-      kind: 'NOTIFICATION',
-      channel: 'TELEGRAM',
-      recipientLabel: 'customer_42 (Telegram)',
-      status: 'FAILED',
-      simulated: true,
-      scenario: 'invalid_recipient',
-      templateKey: 'shipping_update',
-      messagePreview: 'Shipping update for ORD-88241: Dispatched via Ikeja hub.',
-      lastErrorCode: 'invalid_recipient',
-      lastErrorMessage: 'Recipient is not reachable on this channel (simulated)',
-      attempts: [
-        {
-          attempt: 1,
-          outcome: 'permanent_failure',
-          errorCode: 'invalid_recipient',
-          message: 'Recipient is not reachable on this channel (simulated)',
-          at: iso(-900_000 + 600),
-        },
-      ],
-      createdAt: iso(-900_000),
-      failedAt: iso(-900_000 + 600),
-    });
-
-    this.auditLogs.push(
-      {
-        id: newId('aud'),
-        workspaceId: merchantWorkspace.id,
-        action: 'key.created',
-        entityType: 'ApiKey',
-        entityId: starterKey.id,
-        detail: `Provisioned sandbox API key ${starterKey.prefix}…${starterKey.lastFour}`,
-        ip: '127.0.0.1',
-        at: iso(-86400_000 * 5),
-      },
-      {
-        id: newId('aud'),
-        workspaceId: secondWs.id,
-        action: 'billing.complimentary_granted',
-        entityType: 'Entitlement',
-        entityId: secondWs.id,
-        detail: 'Complimentary live activation granted: Early pilot partner cohort',
-        ip: '127.0.0.1',
-        at: iso(-86400_000 * 6),
-      },
-    );
+    this.workspaces.set(ws.id, ws);
+    return ws;
   }
 
   writeAudit(entry: Omit<AuditLogRecord, 'id' | 'at'>) {
@@ -677,7 +473,11 @@ class SendnaroStore {
     for (const ws of this.workspaces.values()) {
       if (ws.ownerUserId === userId) return ws;
     }
-    return this.workspaces.get(this.starterWorkspaceId)!;
+    const user = this.users.get(userId);
+    if (user) {
+      return this.ensureAdminWorkspace(user);
+    }
+    throw new Error('Workspace not found for user');
   }
 
   /**
@@ -1591,33 +1391,6 @@ class SendnaroStore {
 }
 
 export const store = new SendnaroStore();
-
-export function createVerifiedDemoSession(ip: string, userAgent: string) {
-  let demoUser = store.findUserByEmail('ops@koramarket.example');
-  if (!demoUser) {
-    demoUser = {
-      id: 'usr_demo_merchant',
-      email: 'ops@koramarket.example',
-      name: 'Kora Operations',
-      passwordHash: hashPassword(crypto.randomBytes(24).toString('hex')),
-      isPlatformAdmin: false,
-      emailVerified: true,
-      createdAt: new Date().toISOString(),
-    };
-    store.users.set(demoUser.id, demoUser);
-  }
-  const session: SessionRecord = {
-    id: newId('ses'),
-    userId: demoUser.id,
-    workspaceId: store.starterWorkspaceId,
-    userAgent,
-    ip,
-    createdAt: new Date().toISOString(),
-    lastSeenAt: new Date().toISOString(),
-  };
-  store.sessions.set(session.id, session);
-  return { user: demoUser, session };
-}
 
 export function verifyUserCredentials(email: string, password: string): UserRecord | null {
   const user = store.findUserByEmail(email);

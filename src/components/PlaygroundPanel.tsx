@@ -65,9 +65,9 @@ export function PlaygroundPanel({
     'order_confirmation' | 'payment_confirmation' | 'shipping_update' | 'general_update'
   >('shipping_update');
   const [notifMessage, setNotifMessage] = useState(
-    'Your order ORD-90421 has departed Lagos Hub. Track at https://track.koramarket.example/90421',
+    'Your order ORD-90421 has been dispatched. Track your delivery anytime.',
   );
-  const [notifLinkUrl, setNotifLinkUrl] = useState('https://track.koramarket.example/90421');
+  const [notifLinkUrl, setNotifLinkUrl] = useState('');
 
   const [tgCustomerId, setTgCustomerId] = useState('customer_42');
   const [tgToken, setTgToken] = useState('');
@@ -681,7 +681,7 @@ export function PlaygroundPanel({
                     type="url"
                     value={notifLinkUrl}
                     onChange={(e) => setNotifLinkUrl(e.target.value)}
-                    placeholder="https://track.koramarket.example/..."
+                    placeholder="https://track.yourbusiness.com/..."
                     className={`${fieldClass} font-mono`}
                   />
                 </div>

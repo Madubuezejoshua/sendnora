@@ -317,10 +317,18 @@ export function AdminView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.06]">
-              {data.businesses.map((b) => {
-                const hasActiveEnt = Boolean(b.entitlement && !b.entitlement.revokedAt);
-                const suspended = Boolean(b.suspendedAt);
-                return (
+              {data.businesses.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-8 text-center text-xs text-[#7E8C81]">
+                    No registered businesses yet. Real business accounts will appear here as soon as
+                    customers sign up.
+                  </td>
+                </tr>
+              ) : (
+                data.businesses.map((b) => {
+                  const hasActiveEnt = Boolean(b.entitlement && !b.entitlement.revokedAt);
+                  const suspended = Boolean(b.suspendedAt);
+                  return (
                   <tr key={b.id} className="hover:bg-white/[0.02]">
                     <td className="px-6 py-3.5">
                       <p className="font-medium text-[#F4F7F4]">{b.name}</p>
@@ -397,8 +405,9 @@ export function AdminView() {
                       </div>
                     </td>
                   </tr>
-                );
-              })}
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -412,17 +421,23 @@ export function AdminView() {
           </h2>
         </div>
         <div className="divide-y divide-white/[0.06] text-xs">
-          {data.auditLogs.slice(0, 15).map((a) => (
-            <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 px-6 py-3">
-              <div>
-                <span className="font-mono font-medium text-[#F4F7F4]">{a.action}</span>
-                <span className="ml-2 text-[#9AA69D]">{a.detail}</span>
-              </div>
-              <span className="font-mono text-[#7E8C81] tabular-nums">
-                {formatTimestamp(a.at)}
-              </span>
+          {data.auditLogs.length === 0 ? (
+            <div className="px-6 py-8 text-center text-xs text-[#7E8C81]">
+              No audit events recorded yet.
             </div>
-          ))}
+          ) : (
+            data.auditLogs.slice(0, 15).map((a) => (
+              <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 px-6 py-3">
+                <div>
+                  <span className="font-mono font-medium text-[#F4F7F4]">{a.action}</span>
+                  <span className="ml-2 text-[#9AA69D]">{a.detail}</span>
+                </div>
+                <span className="font-mono text-[#7E8C81] tabular-nums">
+                  {formatTimestamp(a.at)}
+                </span>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

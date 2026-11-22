@@ -332,7 +332,7 @@ export function SettingsView() {
                   rows={4}
                   value={originsText}
                   onChange={(e) => setOriginsText(e.target.value)}
-                  placeholder="koramarket.example&#10;track.koramarket.example"
+                  placeholder="yourbusiness.com&#10;track.yourbusiness.com"
                   className={`${inputClass} font-mono text-xs`}
                 />
                 <p className="mt-1 text-xs text-[#7E8C81]">
@@ -412,7 +412,7 @@ export function SettingsView() {
                       type="text"
                       value={chBotUser}
                       onChange={(e) => setChBotUser(e.target.value)}
-                      placeholder="koramarket_notify_bot"
+                      placeholder="yourbusiness_notify_bot"
                       className={`${inputClass} font-mono text-xs`}
                     />
                   </div>

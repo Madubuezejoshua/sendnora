@@ -171,7 +171,7 @@ const FAQ_ITEMS = [
   {
     num: '01.',
     q: 'Can I test Sendnaro right now without Meta WhatsApp API keys?',
-    a: 'Yes. Launch the Sandbox Console with one click to mint a scoped sn_test_ API key and simulate invoices, WhatsApp OTP codes, rate limits, retries, and webhook signatures immediately with zero external keys required.',
+    a: 'Yes. Create a free business account to receive a scoped sn_test_ API key and simulate invoices, WhatsApp OTP codes, rate limits, retries, and webhook signatures immediately with zero external keys required.',
   },
   {
     num: '02.',
@@ -199,14 +199,14 @@ export function MarketingSite({
   page,
   onNavigate,
   onOpenAuth,
-  onInstantSandbox,
+  onOpenRegister,
   isAuthenticated,
   onOpenConsole,
 }: {
   page: MarketingPage;
   onNavigate: (next: MarketingPage) => void;
   onOpenAuth: () => void;
-  onInstantSandbox: () => void;
+  onOpenRegister: () => void;
   isAuthenticated: boolean;
   onOpenConsole: () => void;
 }) {
@@ -300,7 +300,7 @@ export function MarketingSite({
           </div>
           <button
             type="button"
-            onClick={isAuthenticated ? onOpenConsole : onOpenAuth}
+            onClick={isAuthenticated ? onOpenConsole : onOpenRegister}
             className="mt-8 w-full rounded-full border border-white/15 bg-white/[0.03] px-4 py-2.5 text-xs font-semibold text-[#F4F7F4] transition-colors hover:border-white/30 hover:bg-white/[0.07] whitespace-nowrap"
           >
             Choose Starter
@@ -343,7 +343,7 @@ export function MarketingSite({
           </div>
           <button
             type="button"
-            onClick={isAuthenticated ? onOpenConsole : onOpenAuth}
+            onClick={isAuthenticated ? onOpenConsole : onOpenRegister}
             className="mt-8 w-full rounded-full bg-[#22C55E] px-4 py-2.5 text-xs font-semibold text-[#050705] transition-colors hover:bg-[#16A34A] whitespace-nowrap"
           >
             Choose Growth
@@ -386,7 +386,7 @@ export function MarketingSite({
           </div>
           <button
             type="button"
-            onClick={isAuthenticated ? onOpenConsole : onOpenAuth}
+            onClick={isAuthenticated ? onOpenConsole : onOpenRegister}
             className="mt-8 w-full rounded-full bg-[#F4F7F4] px-4 py-2.5 text-xs font-semibold text-[#050705] transition-colors hover:bg-white whitespace-nowrap"
           >
             Choose Global Pro
@@ -479,10 +479,10 @@ export function MarketingSite({
                   <div className="mt-8 flex flex-wrap items-center gap-3.5">
                     <button
                       type="button"
-                      onClick={isAuthenticated ? onOpenConsole : onInstantSandbox}
+                      onClick={isAuthenticated ? onOpenConsole : onOpenRegister}
                       className="inline-flex items-center gap-2 rounded-full bg-[#22C55E] px-6 py-3 text-sm font-semibold text-[#050705] transition-colors hover:bg-[#16A34A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white whitespace-nowrap shrink-0"
                     >
-                      Start Sandbox Free
+                      {isAuthenticated ? 'Open Console' : 'Create Free Account'}
                       <ArrowRight className="h-4 w-4" />
                     </button>
                     <button
@@ -606,7 +606,7 @@ export function MarketingSite({
                         <div className="rounded-xl border border-[#22C55E]/25 bg-[#0F1B13] p-4 text-xs leading-relaxed text-[#E1EBE3]">
                           <p className="font-semibold text-[#4ADE80]">Use phone number to verify</p>
                           <p className="mt-1.5">
-                            Your verification code for <strong>Kora Market</strong> is{' '}
+                            Your verification code for <strong>Your Business</strong> is{' '}
                             <span className="font-mono text-sm font-bold tracking-wider text-white">
                               482 910
                             </span>
@@ -970,10 +970,10 @@ export function MarketingSite({
                       <span className="truncate font-mono text-[11px]">{activeTool.sampleLine}</span>
                       <button
                         type="button"
-                        onClick={isAuthenticated ? onOpenConsole : onInstantSandbox}
+                        onClick={isAuthenticated ? onOpenConsole : onOpenRegister}
                         className="inline-flex items-center gap-1 font-semibold text-[#4ADE80] hover:text-white whitespace-nowrap shrink-0"
                       >
-                        Try live
+                        Get Started
                         <ArrowRight className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -1229,10 +1229,10 @@ export function MarketingSite({
               </div>
               <button
                 type="button"
-                onClick={isAuthenticated ? onOpenConsole : onInstantSandbox}
+                onClick={isAuthenticated ? onOpenConsole : onOpenRegister}
                 className="rounded-full border border-white/15 bg-white/[0.04] px-5 py-2 text-xs font-semibold text-[#F4F7F4] hover:border-white/30 hover:bg-white/[0.08] whitespace-nowrap"
               >
-                Open Sandbox Console
+                Create Business Account
               </button>
             </div>
           </section>

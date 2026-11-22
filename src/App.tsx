@@ -11,6 +11,7 @@ export default function App() {
   const [view, setView] = useState<AppView>('marketing');
   const [marketingPage, setMarketingPage] = useState<MarketingPage>('home');
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authInitialMode, setAuthInitialMode] = useState<'signin' | 'register'>('signin');
 
   const [user, setUser] = useState<SessionUser | null>(null);
   const [sandboxKey, setSandboxKey] = useState('');
@@ -50,18 +51,9 @@ export default function App() {
     setView('console');
   };
 
-  const handleInstantSandbox = async () => {
-    const res = await apiRequest<{
-      token: string;
-      user: SessionUser;
-      starterSandboxKey?: string;
-    }>('/api/auth/sandbox-demo', { method: 'POST' });
-    if (res.ok && res.data) {
-      setSessionToken(res.data.token);
-      handleAuthenticated(res.data.user, res.data.starterSandboxKey);
-    } else {
-      setShowAuthModal(true);
-    }
+  const openAuth = (mode: 'signin' | 'register' = 'signin') => {
+    setAuthInitialMode(mode);
+    setShowAuthModal(true);
   };
 
   const handleSignOut = async () => {
@@ -111,14 +103,15 @@ export default function App() {
       <MarketingSite
         page={marketingPage}
         onNavigate={setMarketingPage}
-        onOpenAuth={() => setShowAuthModal(true)}
-        onInstantSandbox={handleInstantSandbox}
+        onOpenAuth={() => openAuth('signin')}
+        onOpenRegister={() => openAuth('register')}
         isAuthenticated={Boolean(user)}
         onOpenConsole={() => setView('console')}
       />
 
       {showAuthModal && (
         <AuthModal
+          initialMode={authInitialMode}
           adminClaimRequired={adminClaimRequired}
           adminEmailHint={adminEmailHint}
           onClose={() => setShowAuthModal(false)}

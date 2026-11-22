@@ -27,7 +27,6 @@ import {
   CURRENCY_META,
   SANDBOX_SCENARIOS,
   WEBHOOK_EVENT_TYPES,
-  createVerifiedDemoSession,
   formatMinorUnits,
   newId,
   store,
@@ -219,8 +218,17 @@ const registerSchema = z.object({
   email: z.string().trim().email().max(160),
   password: z.string().min(8).max(128),
   businessName: z.string().trim().min(2).max(120),
+  country: z.string().trim().min(2).max(80).default('Nigeria'),
+  phone: z.string().trim().max(32).optional(),
   currency: z.enum(['NGN', 'USD', 'GBP', 'EUR', 'KES', 'GHS']).default('NGN'),
 });
+
+const COUNTRY_CODE_MAP: Record<string, string> = {
+  Nigeria: 'NG',
+  'United States': 'US',
+  'United Kingdom': 'GB',
+  Canada: 'CA',
+};
 
 authRouter.post('/register', ipRateLimit('auth_reg', 20, 60), (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
@@ -253,13 +261,16 @@ authRouter.post('/register', ipRateLimit('auth_reg', 20, 60), (req, res) => {
   };
   store.users.set(user.id, user);
 
+  const countryCode = COUNTRY_CODE_MAP[parsed.data.country] ?? 'INTL';
   store.workspaces.set(workspaceId, {
     id: workspaceId,
     name: parsed.data.businessName,
     ownerUserId: userId,
     displayName: parsed.data.businessName,
     contactEmail: email,
-    countryCode: 'NG',
+    contactPhone: parsed.data.phone || undefined,
+    country: parsed.data.country,
+    countryCode,
     currency: parsed.data.currency,
     allowedLinkOrigins: [],
     createdAt: now,
@@ -267,8 +278,9 @@ authRouter.post('/register', ipRateLimit('auth_reg', 20, 60), (req, res) => {
 
   // Auto-provision a starter sandbox key (returned once on signup)
   const generated = generateApiKey('SANDBOX');
-  store.apiKeys.set(newId('key'), {
-    id: newId('key'),
+  const starterKeyId = newId('key');
+  store.apiKeys.set(starterKeyId, {
+    id: starterKeyId,
     workspaceId,
     name: 'Default Sandbox Key',
     environment: 'SANDBOX',
@@ -384,33 +396,6 @@ authRouter.post('/login', ipRateLimit('auth_login', 30, 60), (req, res) => {
 });
 
 /**
- * First-run Sandbox Preview Session:
- * Lets builders test the merchant console + sandbox playground immediately without
- * exposing platform admin privileges (strictly non-admin merchant workspace).
- */
-authRouter.post('/sandbox-demo', ipRateLimit('auth_demo', 30, 60), (req, res) => {
-  const { user, session } = createVerifiedDemoSession(
-    req.ip || 'unknown',
-    String(req.headers['user-agent'] || 'Browser').slice(0, 120),
-  );
-  const ws = store.workspaces.get(session.workspaceId)!;
-  res.json({
-    data: {
-      token: mintSessionToken(session.id, user.id),
-      starterSandboxKey: store.starterSandboxKeyPlaintext,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        isPlatformAdmin: false,
-        workspaceId: ws.id,
-        workspaceName: ws.displayName,
-      },
-    },
-  });
-});
-
-/**
  * First-Run Platform Admin Bootstrap / Claim Route:
  * Available ONLY when PLATFORM_ADMIN_PASSWORD is unset in process.env AND
  * no admin password has been claimed yet. Atomically hashes the chosen password
@@ -455,10 +440,12 @@ authRouter.post('/claim-admin', ipRateLimit('auth_claim', 10, 60), (req, res) =>
   store.adminEmail = email;
   store.adminClaimed = true;
 
+  const adminWorkspace = store.ensureAdminWorkspace(adminUser);
+
   const session: SessionRecord = {
     id: newId('ses'),
     userId: adminUser.id,
-    workspaceId: store.starterWorkspaceId,
+    workspaceId: adminWorkspace.id,
     userAgent: String(req.headers['user-agent'] || 'Browser').slice(0, 120),
     ip: req.ip || 'unknown',
     createdAt: now,
@@ -467,6 +454,7 @@ authRouter.post('/claim-admin', ipRateLimit('auth_claim', 10, 60), (req, res) =>
   store.sessions.set(session.id, session);
 
   store.writeAudit({
+    workspaceId: adminWorkspace.id,
     actorUserId: adminUser.id,
     actorEmail: adminUser.email,
     action: 'admin.claimed',
@@ -479,14 +467,13 @@ authRouter.post('/claim-admin', ipRateLimit('auth_claim', 10, 60), (req, res) =>
   res.status(201).json({
     data: {
       token: mintSessionToken(session.id, adminUser.id),
-      starterSandboxKey: store.starterSandboxKeyPlaintext,
       user: {
         id: adminUser.id,
         email: adminUser.email,
         name: adminUser.name,
         isPlatformAdmin: true,
-        workspaceId: store.starterWorkspaceId,
-        workspaceName: store.workspaces.get(store.starterWorkspaceId)!.displayName,
+        workspaceId: adminWorkspace.id,
+        workspaceName: adminWorkspace.displayName,
       },
     },
   });
