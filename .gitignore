@@ -1,57 +1,12 @@
-# Dependencies
 node_modules/
-.pnp/
-.pnp.js
-
-# Build output
-dist/
 build/
-.next/
-out/
-*.tsbuildinfo
-
-# Env files (never commit real secrets)
-.env
-.env.local
-.env.*.local
-.env.staging
-!.env.example
-
-# Logs
-npm-debug.log*
-logs/
-*.log
-
-# Testing
+dist/
 coverage/
-playwright-report/
-test-results/
-blob-report/
-
-# Prisma
-packages/database/generated/
-
-# Local dev storage adapter
-.dev-storage/
-.dev-emails/
-
-# OS / editor
 .DS_Store
-Thumbs.db
-.vscode/*
-!.vscode/extensions.json
-.idea/
+*.log
+.env*
+!.env.example
+public/assets/aistudio/
+.aistudio/
 
-# Misc
-*.pem
-.turbo/
-.vercel/
-.railway/
 
-.vercel
-
-# Dev/test email sinks
-.dev-emails/
-**/.dev-emails/
-test-results/
-playwright-report/

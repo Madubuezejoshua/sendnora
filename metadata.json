@@ -1,0 +1,6 @@
+{
+  "name": "Sendnaro",
+  "description": "Customer messages, delivered automatically — API platform and developer console for transactional invoices, WhatsApp OTP verification, Telegram notifications, and signed webhooks.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

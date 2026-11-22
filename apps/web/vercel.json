@@ -1,6 +1,0 @@
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nextjs",
-  "installCommand": "cd ../.. && npm ci --include=dev",
-  "buildCommand": "cd ../.. && npm run db:generate --workspace=@sendnaro/database && mkdir -p apps/web/generated/client && cp packages/database/generated/client/*.node packages/database/generated/client/schema.prisma apps/web/generated/client/ && npm run build:web"
-}
