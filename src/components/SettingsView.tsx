@@ -149,7 +149,7 @@ export function SettingsView() {
       setChSecret('');
       setFeedback({
         ok: true,
-        text: `Credentials encrypted with AES-256-GCM (${res.data?.secretMask}). Plaintext is never returned.`,
+        text: 'Channel credentials encrypted and saved securely.',
       });
       load();
     } else {
@@ -168,10 +168,10 @@ export function SettingsView() {
     if (res.ok && res.data) {
       setWhUrl('');
       setNewWhSecret(res.data.signingSecret);
-      setFeedback({ ok: true, text: 'SSRF-vetted webhook registered. Copy your signing secret below.' });
+      setFeedback({ ok: true, text: 'Webhook endpoint registered. Copy your signing secret below.' });
       load();
     } else {
-      setFeedback({ ok: false, text: res.error?.message || 'Webhook registration blocked' });
+      setFeedback({ ok: false, text: res.error?.message || 'Unable to register webhook endpoint' });
     }
   };
 
@@ -221,8 +221,8 @@ export function SettingsView() {
           Settings
         </h1>
         <p className="mt-1 text-sm text-[#9AA69D]">
-          Manage business identity, encrypted channel senders, SSRF-hardened webhooks, and active
-          sessions.
+          Manage your business profile, connected WhatsApp &amp; Telegram senders, webhook endpoints,
+          and active sign-in sessions.
         </p>
       </div>
 
@@ -513,8 +513,8 @@ export function SettingsView() {
                   Register HTTPS webhook endpoint
                 </h2>
                 <p className="text-xs text-[#849287]">
-                  URLs are vetted against SSRF: HTTPS required, no embedded credentials, and private
-                  / loopback / cloud metadata IPs are blocked.
+                  HTTPS endpoints only. Sendnaro signs every webhook delivery so your server can
+                  verify its authenticity.
                 </p>
 
                 <div className="grid gap-4 md:grid-cols-3">
@@ -639,10 +639,10 @@ export function SettingsView() {
                     <Shield className="h-4 w-4 text-[#22C55E]" />
                     <div>
                       <h2 className="font-display text-base font-semibold text-[#F4F7F4]">
-                        Active server-tracked sessions ({data.security.activeSessions.length})
+                        Active sessions ({data.security.activeSessions.length})
                       </h2>
                       <p className="text-xs text-[#849287]">
-                        Bearer session tokens are held strictly in browser memory (never localStorage).
+                        Review signed-in devices for your account and sign out other sessions anytime.
                       </p>
                     </div>
                   </div>

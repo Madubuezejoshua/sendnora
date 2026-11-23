@@ -114,8 +114,8 @@ export function KeysView({
           API keys
         </h1>
         <p className="mt-1 text-sm text-[#9AA69D]">
-          256-bit CSPRNG secrets stored exclusively as SHA-256 digests. Secrets are displayed once
-          at creation and cannot be recovered later.
+          Create scoped API keys for Sandbox testing or Live production. Full secrets are shown once
+          at creation and cannot be viewed again.
         </p>
       </div>
 

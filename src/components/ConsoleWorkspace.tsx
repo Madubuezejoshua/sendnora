@@ -89,11 +89,13 @@ export function ConsoleWorkspace({
     { id: 'integration', label: 'Integration', icon: Terminal },
     { id: 'keys', label: 'API keys', icon: KeyRound },
     { id: 'deliveries', label: 'Deliveries', icon: Activity },
-    { id: 'performance', label: 'Speed & Perf', icon: Gauge },
     { id: 'settings', label: 'Settings', icon: Settings },
     { id: 'activation', label: 'Activation', icon: Zap },
     ...(user.isPlatformAdmin
-      ? [{ id: 'admin' as const, label: 'Platform Admin', icon: Shield, adminOnly: true }]
+      ? [
+          { id: 'performance' as const, label: 'Speed & Perf', icon: Gauge, adminOnly: true },
+          { id: 'admin' as const, label: 'Platform Admin', icon: Shield, adminOnly: true },
+        ]
       : []),
   ];
 
@@ -296,9 +298,9 @@ export function ConsoleWorkspace({
 
           {tab === 'keys' && <KeysView onUseSandboxKey={onChangeSandboxKey} />}
           {tab === 'deliveries' && <DeliveriesView refreshSignal={refreshSignal} />}
-          {tab === 'performance' && <PerformanceView sandboxKey={sandboxKey} />}
           {tab === 'settings' && <SettingsView />}
           {tab === 'activation' && <ActivationView />}
+          {tab === 'performance' && user.isPlatformAdmin && <PerformanceView sandboxKey={sandboxKey} />}
           {tab === 'admin' && user.isPlatformAdmin && <AdminView />}
         </main>
       </div>

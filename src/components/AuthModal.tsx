@@ -1,20 +1,16 @@
 import { useState, type FormEvent } from 'react';
-import { X, Shield } from 'lucide-react';
+import { X } from 'lucide-react';
 import { apiRequest, setSessionToken, type SessionUser } from '../lib/api';
 import { BrandMark } from './BrandMark';
 
-type AuthMode = 'signin' | 'register' | 'claim_admin';
+type AuthMode = 'signin' | 'register';
 
 export function AuthModal({
   initialMode = 'signin',
-  adminClaimRequired,
-  adminEmailHint,
   onClose,
   onAuthenticated,
 }: {
-  initialMode?: 'signin' | 'register';
-  adminClaimRequired: boolean;
-  adminEmailHint: string;
+  initialMode?: AuthMode;
   onClose: () => void;
   onAuthenticated: (user: SessionUser, starterSandboxKey?: string) => void;
 }) {
@@ -26,8 +22,6 @@ export function AuthModal({
   const [country, setCountry] = useState('Nigeria');
   const [phone, setPhone] = useState('');
   const [currency, setCurrency] = useState<'NGN' | 'USD' | 'GBP' | 'EUR'>('NGN');
-  const [adminEmail, setAdminEmail] = useState(adminEmailHint || 'admin@sendnaro.com');
-  const [adminPassword, setAdminPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,39 +54,20 @@ export function AuthModal({
       return;
     }
 
-    if (mode === 'register') {
-      const res = await apiRequest<{
-        token: string;
-        user: SessionUser;
-        starterSandboxKey?: string;
-      }>('/api/auth/register', {
-        method: 'POST',
-        body: { name, email, password, businessName, country, phone, currency },
-      });
-      setBusy(false);
-      if (res.ok && res.data) {
-        setSessionToken(res.data.token);
-        onAuthenticated(res.data.user, res.data.starterSandboxKey);
-      } else {
-        setError(res.error?.message || 'Could not create business account');
-      }
-      return;
-    }
-
-    // One-time first-run Platform Admin claim
     const res = await apiRequest<{
       token: string;
       user: SessionUser;
-    }>('/api/auth/claim-admin', {
+      starterSandboxKey?: string;
+    }>('/api/auth/register', {
       method: 'POST',
-      body: { email: adminEmail, password: adminPassword },
+      body: { name, email, password, businessName, country, phone, currency },
     });
     setBusy(false);
     if (res.ok && res.data) {
       setSessionToken(res.data.token);
-      onAuthenticated(res.data.user);
+      onAuthenticated(res.data.user, res.data.starterSandboxKey);
     } else {
-      setError(res.error?.message || 'Could not claim platform admin access');
+      setError(res.error?.message || 'Could not create business account');
     }
   };
 
@@ -150,25 +125,6 @@ export function AuthModal({
             Create business
           </button>
         </div>
-
-        {adminClaimRequired && mode !== 'claim_admin' && (
-          <div className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-[#22C55E]/25 bg-[#22C55E]/[0.07] px-3.5 py-2.5">
-            <div className="flex items-center gap-2 text-xs text-[#D6E3D9]">
-              <Shield className="h-4 w-4 shrink-0 text-[#22C55E]" />
-              <span>First-run setup: claim Platform Admin</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setMode('claim_admin');
-                setError(null);
-              }}
-              className="text-xs font-semibold text-[#4ADE80] underline underline-offset-2 hover:text-white whitespace-nowrap shrink-0"
-            >
-              Claim
-            </button>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           {mode === 'signin' && (
@@ -284,40 +240,6 @@ export function AuthModal({
             </>
           )}
 
-          {mode === 'claim_admin' && (
-            <>
-              <div className="rounded-lg border border-white/10 bg-[#070A08] p-3 text-xs text-[#9AA69D] leading-relaxed">
-                Set the initial Platform Admin password. This one-time bootstrap locks permanently
-                once claimed and can also be overridden via{' '}
-                <code className="font-mono text-[#F4F7F4]">PLATFORM_ADMIN_PASSWORD</code> in Secrets.
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[#A8B3AA]">Admin email</label>
-                <input
-                  type="email"
-                  required
-                  value={adminEmail}
-                  onChange={(e) => setAdminEmail(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[#A8B3AA]">
-                  Choose admin password (min 10 chars)
-                </label>
-                <input
-                  type="password"
-                  required
-                  minLength={10}
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
-                  placeholder="Enter a strong admin password"
-                  className={inputClass}
-                />
-              </div>
-            </>
-          )}
-
           {error && (
             <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3.5 py-2.5 text-xs text-red-300">
               {error}
@@ -333,9 +255,7 @@ export function AuthModal({
               ? 'Verifying...'
               : mode === 'signin'
                 ? 'Sign in to console'
-                : mode === 'register'
-                  ? 'Create business & issue sandbox key'
-                  : 'Claim Platform Admin access'}
+                : 'Create business account'}
           </button>
         </form>
       </div>

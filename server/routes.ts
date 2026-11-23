@@ -208,7 +208,6 @@ authRouter.get('/status', (req, res) => {
       authenticated: Boolean(currentUser),
       user: currentUser,
       adminClaimRequired: store.needsAdminClaim(),
-      adminEmailHint: store.adminEmail,
     },
   });
 });
@@ -1513,8 +1512,52 @@ consoleRouter.post('/settings/webhooks/:webhookId/test', (req, res) => {
 consoleRouter.get('/activation', (req, res) => {
   const wsId = req.sessionAuth!.session.workspaceId;
   const state = store.getActivationState(wsId);
-  const payments = store.activationPayments.filter((p) => p.workspaceId === wsId);
-  res.json({ data: { ...state, payments } });
+  const payments = store.activationPayments
+    .filter((p) => p.workspaceId === wsId)
+    .map((p) => ({
+      id: p.id,
+      reference: p.reference,
+      amountMinor: p.amountMinor,
+      currency: p.currency,
+      status: p.livemode ? 'VERIFIED' : 'PENDING',
+      createdAt: p.createdAt,
+    }));
+  res.json({
+    data: {
+      billingRequired: state.billingRequired,
+      activationPriceMinor: state.activationPriceMinor,
+      activationCurrency: state.activationCurrency,
+      liveAllowed: state.liveAllowed,
+      entitlement: state.entitlement
+        ? {
+            source: state.entitlement.source,
+            grantedAt: state.entitlement.grantedAt,
+            revokedAt: state.entitlement.revokedAt,
+          }
+        : null,
+      payments,
+    },
+  });
+});
+
+const SERVER_PLAN_TOTALS_MAJOR: Record<'starter' | 'growth' | 'global_pro', { currency: 'NGN' | 'USD'; byMonth: Record<number, number> }> = {
+  starter: {
+    currency: 'NGN',
+    byMonth: { 1: 7000, 2: 13000, 3: 18000, 4: 23200, 5: 28500, 6: 33000, 7: 37800, 8: 42400, 9: 46800, 10: 51500, 11: 56100, 12: 60000 },
+  },
+  growth: {
+    currency: 'NGN',
+    byMonth: { 1: 12000, 2: 22000, 3: 30000, 4: 38400, 5: 46500, 6: 54000, 7: 62300, 8: 70400, 9: 78300, 10: 86000, 11: 93500, 12: 100000 },
+  },
+  global_pro: {
+    currency: 'USD',
+    byMonth: { 1: 25, 2: 46, 3: 63, 4: 80, 5: 97, 6: 114, 7: 130, 8: 145, 9: 160, 10: 174, 11: 188, 12: 200 },
+  },
+};
+
+const activationCheckoutSchema = z.object({
+  planId: z.enum(['starter', 'growth', 'global_pro']).optional(),
+  durationMonths: z.number().int().min(1).max(12).optional(),
 });
 
 consoleRouter.post('/activation/checkout', (req, res) => {
@@ -1522,9 +1565,31 @@ consoleRouter.post('/activation/checkout', (req, res) => {
   const settings = store.billingSettings;
   if (!settings.billingRequired) {
     res.status(400).json({
-      error: { code: 'BILLING_OFF', message: 'Live sending is currently open without an activation fee.' },
+      error: { code: 'BILLING_OFF', message: 'Live sending is already active for your business account.' },
     });
     return;
+  }
+
+  const parsed = activationCheckoutSchema.safeParse(req.body ?? {});
+  if (!parsed.success) {
+    res.status(400).json({
+      error: { code: 'VALIDATION_ERROR', message: 'Invalid plan or billing duration selected' },
+    });
+    return;
+  }
+
+  let amountMinor = settings.activationPriceMinor;
+  let currency: string = settings.activationCurrency;
+  let planSummary = 'Annual activation';
+
+  if (parsed.data.planId && parsed.data.durationMonths) {
+    const planTable = SERVER_PLAN_TOTALS_MAJOR[parsed.data.planId];
+    const major = planTable.byMonth[parsed.data.durationMonths];
+    if (major) {
+      amountMinor = major * 100;
+      currency = planTable.currency;
+      planSummary = `${parsed.data.planId} (${parsed.data.durationMonths} mo)`;
+    }
   }
 
   const isLiveGateway = settings.gatewayMode === 'LIVE';
@@ -1534,8 +1599,8 @@ consoleRouter.post('/activation/checkout', (req, res) => {
     id: newId('pay'),
     workspaceId: session.workspaceId,
     reference: ref,
-    amountMinor: settings.activationPriceMinor,
-    currency: settings.activationCurrency,
+    amountMinor,
+    currency,
     status: 'VERIFIED' as const,
     livemode: isLiveGateway,
     refundedMinor: 0,
@@ -1553,14 +1618,13 @@ consoleRouter.post('/activation/checkout', (req, res) => {
       action: 'billing.test_payment_recorded',
       entityType: 'ActivationPayment',
       entityId: payment.id,
-      detail: `Recorded test-mode checkout ${ref}; live entitlement NOT granted until live gateway key is configured`,
+      detail: `Recorded test-mode checkout ${ref} for ${planSummary}; live entitlement NOT granted until live gateway key is configured`,
       ip: req.ip || 'unknown',
     });
     res.json({
       data: {
-        payment,
         entitlementGranted: false,
-        note: 'Gateway is in TEST mode. Test payments are recorded for verification but never unlock live production keys.',
+        note: 'Checkout reference recorded. Live billing activation is currently being finalized — please contact support if you need immediate activation.',
       },
     });
     return;
@@ -1571,7 +1635,7 @@ consoleRouter.post('/activation/checkout', (req, res) => {
     source: 'PAID',
     grantedAt: now,
     grantedByUserId: user.id,
-    note: `Verified live checkout ${ref}`,
+    note: `Verified live checkout ${ref} — ${planSummary}`,
   });
   store.writeAudit({
     workspaceId: session.workspaceId,
@@ -1580,7 +1644,7 @@ consoleRouter.post('/activation/checkout', (req, res) => {
     action: 'billing.entitlement_granted',
     entityType: 'Entitlement',
     entityId: session.workspaceId,
-    detail: `Live activation granted via verified payment ${ref}`,
+    detail: `Live activation granted via verified payment ${ref} (${planSummary})`,
     ip: req.ip || 'unknown',
   });
   res.json({ data: { payment, entitlementGranted: true } });

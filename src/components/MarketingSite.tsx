@@ -19,8 +19,15 @@ import {
 import { apiRequest } from '../lib/api';
 import { BrandMark } from './BrandMark';
 import { CodeBlock } from './CodeBlock';
+import { BillingDurationSelector } from './BillingDurationSelector';
+import {
+  PLANS,
+  calculatePlanQuote,
+  formatMajorPrice,
+  type BillingPreset,
+} from '../lib/pricing';
 
-export type MarketingPage = 'home' | 'docs' | 'pricing' | 'security' | 'support';
+export type MarketingPage = 'home' | 'about' | 'docs' | 'pricing' | 'security' | 'support';
 
 interface PlatformState {
   billingRequired: boolean;
@@ -151,19 +158,19 @@ const TOOL_MODULES = [
     sampleLine: 'Receipt #INV-88241 paid · Sent to +234 801 234 5678 via WhatsApp.',
   },
   {
-    id: 'giveaways',
-    title: 'Company Giveaway & Trial Keys',
-    summary: 'Grant 1-week complimentary trial access from Platform Admin so new businesses test live delivery risk-free.',
-    panelLabel: 'Platform Admin Entitlements',
-    metricPrimary: '7 Days',
-    metricSecondary: '/ trial window',
-    statusText: 'Active Grant',
-    progressPct: 62,
-    leftStatLabel: 'Key Format',
-    leftStatValue: 'sn_live_…',
-    rightStatLabel: 'Audit Coverage',
-    rightStatValue: '100% logged',
-    sampleLine: 'Complimentary entitlement granted · Revocable in one click from Admin.',
+    id: 'updates',
+    title: 'Order & Shipping Updates',
+    summary: 'Send timely payment, dispatch, and account alerts on WhatsApp or Telegram with verified business links.',
+    panelLabel: 'Transactional Alerts',
+    metricPrimary: '2 Channels',
+    metricSecondary: 'WhatsApp & Telegram',
+    statusText: 'Verified Links',
+    progressPct: 72,
+    leftStatLabel: 'Link Protection',
+    leftStatValue: 'Allowlisted',
+    rightStatLabel: 'Retry Handling',
+    rightStatValue: 'Automatic',
+    sampleLine: 'Order #ORD-88241 dispatched · Tracking update delivered on WhatsApp.',
   },
 ] as const;
 
@@ -171,27 +178,27 @@ const FAQ_ITEMS = [
   {
     num: '01.',
     q: 'Can I test Sendnaro right now without Meta WhatsApp API keys?',
-    a: 'Yes. Create a free business account to receive a scoped sn_test_ API key and simulate invoices, WhatsApp OTP codes, rate limits, retries, and webhook signatures immediately with zero external keys required.',
+    a: 'Yes. Create a free business account to receive a scoped sn_test_ API key and test invoices, WhatsApp OTP codes, retries, and webhook signatures in Sandbox before going live.',
   },
   {
     num: '02.',
-    q: 'How does annual pricing work for Nigerian vs. international businesses?',
-    a: 'Nigerian businesses start on Starter (₦60,000/year for 50 messages/month) or Growth (₦100,000/year for unlimited invoices and WhatsApp OTP verification). When you select a non-Nigerian country during onboarding, Global Pro ($200/year unlimited) is automatically configured.',
+    q: 'How does monthly vs. annual pricing work for Nigerian and global businesses?',
+    a: 'You can pay for 1, 2, 3, or any custom number of months — or save up to 33% by paying yearly. Starter scales both price and quota: 50 messages/month on 1-month billing (₦7,000), up to 100 messages/month (1,200/year — 2× bonus) on the 1-year plan (₦60,000). Growth (₦12,000/mo or ₦100,000/yr) and Global Pro ($25/mo or $200/yr) include unlimited messages.',
   },
   {
     num: '03.',
     q: 'What do I need from Meta to go live on WhatsApp?',
-    a: 'Create a Meta App with the WhatsApp product enabled, copy your Phone Number ID and Permanent System User Access Token, and paste them into Settings → Channels. Sendnaro encrypts your token at rest using AES-256-GCM.',
+    a: 'Create a Meta App with the WhatsApp product enabled, copy your Phone Number ID and Permanent System User Access Token, and save them in Settings → Channels. Sendnaro encrypts your credentials at rest.',
   },
   {
     num: '04.',
-    q: 'How do company giveaways and 1-week trial keys work?',
-    a: 'Platform Admins can grant complimentary live access or trial entitlements to any registered company directly from the Platform Admin tab, attach a campaign note, and revoke or convert them to annual billing anytime.',
+    q: 'Can I use Sendnaro for both payment invoices and WhatsApp OTP verification?',
+    a: 'Yes. One Sendnaro account and API integration handles both automated payment receipts and WhatsApp phone number verification ("Use phone number to verify") so you do not need separate providers.',
   },
   {
     num: '05.',
-    q: 'Are OTP codes or customer secrets ever stored in plaintext?',
-    a: 'Never. API keys are stored only as SHA-256 hashes, channel tokens use AES-256-GCM encryption, and OTP codes are derived transiently from a 256-bit seed via HMAC-SHA256 with constant-time verification.',
+    q: 'Are OTP codes or channel credentials ever stored in plaintext?',
+    a: 'Never. API keys are hashed, channel credentials are encrypted at rest, and one-time verification codes are generated dynamically and verified with strict attempt limits.',
   },
 ];
 
@@ -214,6 +221,8 @@ export function MarketingSite({
   const [heroTab, setHeroTab] = useState<'volume' | 'whatsapp' | 'curl'>('volume');
   const [activeToolId, setActiveToolId] = useState<(typeof TOOL_MODULES)[number]['id']>('otp');
   const [pricingRegion, setPricingRegion] = useState<'all' | 'nigeria' | 'global'>('all');
+  const [billingPreset, setBillingPreset] = useState<BillingPreset>('12');
+  const [billingMonths, setBillingMonths] = useState<number>(12);
   const [openFaq, setOpenFaq] = useState<number>(0);
 
   const [contactForm, setContactForm] = useState({
@@ -257,6 +266,7 @@ export function MarketingSite({
 
   const navItems: { id: MarketingPage; label: string }[] = [
     { id: 'home', label: 'Product' },
+    { id: 'about', label: 'About' },
     { id: 'docs', label: 'API Docs' },
     { id: 'pricing', label: 'Pricing' },
     { id: 'security', label: 'Security' },
@@ -265,136 +275,139 @@ export function MarketingSite({
 
   const activeTool = TOOL_MODULES.find((m) => m.id === activeToolId) ?? TOOL_MODULES[0];
 
-  const renderPricingCards = () => (
-    <div className="mt-10 grid gap-6 md:grid-cols-3">
-      {(pricingRegion === 'all' || pricingRegion === 'nigeria') && (
-        <div className="flex flex-col justify-between rounded-2xl border border-white/[0.08] bg-[#0B0F0C] p-7">
-          <div>
-            <p className="text-xs font-medium text-[#8B988E]">Nigeria · For early-stage teams</p>
-            <h3 className="mt-2 font-display text-lg font-semibold text-[#F4F7F4]">Starter Plan</h3>
-            <p className="mt-4 font-display text-3xl font-bold tracking-tight text-[#F4F7F4] tabular-nums">
-              ₦60,000
-              <span className="ml-1.5 text-xs font-normal text-[#7E8C81]">/ year</span>
-            </p>
-            <p className="mt-2 text-xs text-[#8B988E]">
-              Built for solo founders and growing local stores automating WhatsApp messages.
-            </p>
-            <ul className="mt-6 space-y-3 border-t border-white/[0.07] pt-6 text-xs text-[#C2CEC5]">
-              <li className="flex items-start gap-2.5">
-                <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
-                <span>50 messages per month (invoices &amp; OTP)</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
-                <span>WhatsApp phone number verification API</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
-                <span>AES-256-GCM encrypted Meta credentials</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
-                <span>120 API requests / min rate limit</span>
-              </li>
-            </ul>
-          </div>
-          <button
-            type="button"
-            onClick={isAuthenticated ? onOpenConsole : onOpenRegister}
-            className="mt-8 w-full rounded-full border border-white/15 bg-white/[0.03] px-4 py-2.5 text-xs font-semibold text-[#F4F7F4] transition-colors hover:border-white/30 hover:bg-white/[0.07] whitespace-nowrap"
-          >
-            Choose Starter
-          </button>
-        </div>
-      )}
+  const renderPricingCards = () => {
+    const visiblePlans = PLANS.filter(
+      (p) => pricingRegion === 'all' || p.region === pricingRegion,
+    );
 
-      {(pricingRegion === 'all' || pricingRegion === 'nigeria') && (
-        <div className="relative flex flex-col justify-between rounded-2xl border border-[#22C55E]/50 bg-[radial-gradient(ellipse_at_top,rgba(34,197,94,0.12),#0B0F0C_60%)] p-7">
-          <div>
-            <p className="text-xs font-medium text-[#4ADE80]">Nigeria · Most Popular · Unlimited</p>
-            <h3 className="mt-2 font-display text-lg font-semibold text-[#F4F7F4]">Growth Plan</h3>
-            <p className="mt-4 font-display text-3xl font-bold tracking-tight text-[#F4F7F4] tabular-nums">
-              ₦100,000
-              <span className="ml-1.5 text-xs font-normal text-[#8B988E]">/ year</span>
-            </p>
-            <p className="mt-2 text-xs text-[#9EAFA2]">
-              Full unlimited volume for 12 months with zero per-message Sendnaro fees.
-            </p>
-            <ul className="mt-6 space-y-3 border-t border-white/[0.08] pt-6 text-xs text-[#E1EBE3]">
-              <li className="flex items-start gap-2.5">
-                <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
-                <span>
-                  <strong className="font-semibold text-white">Unlimited</strong> messages for 1 full year
-                </span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
-                <span>Automated invoices, receipts &amp; WhatsApp OTPs</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
-                <span>Signed webhooks &amp; Telegram customer links</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
-                <span>Up to 600 API requests / min throughput</span>
-              </li>
-            </ul>
-          </div>
-          <button
-            type="button"
-            onClick={isAuthenticated ? onOpenConsole : onOpenRegister}
-            className="mt-8 w-full rounded-full bg-[#22C55E] px-4 py-2.5 text-xs font-semibold text-[#050705] transition-colors hover:bg-[#16A34A] whitespace-nowrap"
-          >
-            Choose Growth
-          </button>
-        </div>
-      )}
+    return (
+      <div className="mt-8 space-y-6">
+        <BillingDurationSelector
+          preset={billingPreset}
+          months={billingMonths}
+          onSelectPreset={(nextPreset, nextMonths) => {
+            setBillingPreset(nextPreset);
+            setBillingMonths(nextMonths);
+          }}
+          onChangeCustomMonths={(nextMonths) => {
+            setBillingPreset('custom');
+            setBillingMonths(nextMonths);
+          }}
+        />
 
-      {(pricingRegion === 'all' || pricingRegion === 'global') && (
-        <div className="flex flex-col justify-between rounded-2xl border border-white/[0.08] bg-[#0B0F0C] p-7">
-          <div>
-            <p className="text-xs font-medium text-[#8B988E]">International · Non-Nigerian Businesses</p>
-            <h3 className="mt-2 font-display text-lg font-semibold text-[#F4F7F4]">Global Pro</h3>
-            <p className="mt-4 font-display text-3xl font-bold tracking-tight text-[#F4F7F4] tabular-nums">
-              $200
-              <span className="ml-1.5 text-xs font-normal text-[#7E8C81]">/ year</span>
-            </p>
-            <p className="mt-2 text-xs text-[#8B988E]">
-              Auto-selected for US, UK, Canada, and global workspaces during signup.
-            </p>
-            <ul className="mt-6 space-y-3 border-t border-white/[0.07] pt-6 text-xs text-[#C2CEC5]">
-              <li className="flex items-start gap-2.5">
-                <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
-                <span>
-                  <strong className="font-semibold text-white">Unlimited</strong> global WhatsApp &amp; invoices
-                </span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
-                <span>Multi-currency receipts (USD, GBP, EUR)</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
-                <span>Priority multi-region webhook routing</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
-                <span>Dedicated integration engineering support</span>
-              </li>
-            </ul>
-          </div>
-          <button
-            type="button"
-            onClick={isAuthenticated ? onOpenConsole : onOpenRegister}
-            className="mt-8 w-full rounded-full bg-[#F4F7F4] px-4 py-2.5 text-xs font-semibold text-[#050705] transition-colors hover:bg-white whitespace-nowrap"
-          >
-            Choose Global Pro
-          </button>
+        <div
+          className={`grid gap-6 ${
+            visiblePlans.length === 1
+              ? 'md:grid-cols-1 max-w-md'
+              : visiblePlans.length === 2
+                ? 'md:grid-cols-2'
+                : 'md:grid-cols-3'
+          }`}
+        >
+          {visiblePlans.map((plan) => {
+            const quote = calculatePlanQuote(plan, billingMonths);
+            const annualQuote = calculatePlanQuote(plan, 12);
+            const isPopular = Boolean(plan.popular);
+            const isGlobal = plan.id === 'global_pro';
+
+            return (
+              <div
+                key={plan.id}
+                className={`relative flex flex-col justify-between rounded-2xl p-7 ${
+                  isPopular
+                    ? 'border border-[#22C55E]/50 bg-[radial-gradient(ellipse_at_top,rgba(34,197,94,0.12),#0B0F0C_60%)]'
+                    : 'border border-white/[0.08] bg-[#0B0F0C]'
+                }`}
+              >
+                <div>
+                  <p
+                    className={`text-xs font-medium ${
+                      isPopular ? 'text-[#4ADE80]' : 'text-[#8B988E]'
+                    }`}
+                  >
+                    {plan.regionLabel}
+                  </p>
+                  <h3 className="mt-2 font-display text-lg font-semibold text-[#F4F7F4]">
+                    {plan.name}
+                  </h3>
+
+                  {/* Dynamic Total Price */}
+                  <div className="mt-4 flex items-baseline gap-2 flex-wrap">
+                    <p className="font-display text-3xl font-bold tracking-tight text-[#F4F7F4] tabular-nums">
+                      {formatMajorPrice(quote.totalMajor, quote.currency)}
+                    </p>
+                    <span className="text-xs font-normal text-[#8B988E]">{quote.periodLabel}</span>
+                    {quote.savingsMajor > 0 && (
+                      <span className="font-mono text-xs text-[#6E7C71] line-through tabular-nums">
+                        {formatMajorPrice(quote.standardMonthlyTotalMajor, quote.currency)}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Effective Monthly Rate & Savings Breakdown */}
+                  <div className="mt-2 min-h-[20px] font-mono text-[11px] tabular-nums">
+                    {quote.months > 1 ? (
+                      <span className="text-[#4ADE80]">
+                        {formatMajorPrice(
+                          quote.effectiveMonthlyMajor,
+                          quote.currency,
+                          quote.currency === 'USD' && !Number.isInteger(quote.effectiveMonthlyMajor),
+                        )}
+                        /mo · Save {formatMajorPrice(quote.savingsMajor, quote.currency)} (
+                        {quote.savingsPct}% off)
+                      </span>
+                    ) : (
+                      <span className="text-[#8B988E]">
+                        Standard monthly · Save up to {annualQuote.savingsPct}% on 1 Year
+                      </span>
+                    )}
+                  </div>
+
+                  <p className={`mt-3 text-xs ${isPopular ? 'text-[#9EAFA2]' : 'text-[#8B988E]'}`}>
+                    {plan.tagline}
+                  </p>
+
+                  <ul
+                    className={`mt-6 space-y-3 border-t pt-6 text-xs ${
+                      isPopular
+                        ? 'border-white/[0.08] text-[#E1EBE3]'
+                        : 'border-white/[0.07] text-[#C2CEC5]'
+                    }`}
+                  >
+                    <li className="flex items-start gap-2.5">
+                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
+                      <strong className="font-semibold text-[#F4F7F4]">{quote.quotaLabel}</strong>
+                    </li>
+                    {plan.features.map((feat) => (
+                      <li key={feat} className="flex items-start gap-2.5">
+                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
+                        <span>{feat}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={isAuthenticated ? onOpenConsole : onOpenRegister}
+                  className={`mt-8 w-full rounded-full px-4 py-2.5 text-xs font-semibold transition-colors whitespace-nowrap ${
+                    isPopular
+                      ? 'bg-[#22C55E] text-[#050705] hover:bg-[#16A34A]'
+                      : isGlobal
+                        ? 'bg-[#F4F7F4] text-[#050705] hover:bg-white'
+                        : 'border border-white/15 bg-white/[0.03] text-[#F4F7F4] hover:border-white/30 hover:bg-white/[0.07]'
+                  }`}
+                >
+                  Choose {plan.name.replace(' Plan', '')} ({quote.months}{' '}
+                  {quote.months === 1 ? 'mo' : 'mos'})
+                </button>
+              </div>
+            );
+          })}
         </div>
-      )}
-    </div>
-  );
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-[#050705] text-[#F4F7F4]">
@@ -783,8 +796,8 @@ export function MarketingSite({
                         ambiguous timeouts unconfirmed so customers are never spammed.
                       </p>
                     </div>
-                    <span className="font-mono text-xs font-semibold text-[#4ADE80] tabular-nums whitespace-nowrap">
-                      12.4ms p95
+                    <span className="font-mono text-xs font-semibold text-[#4ADE80] whitespace-nowrap">
+                      Zero duplicates
                     </span>
                   </div>
 
@@ -987,14 +1000,14 @@ export function MarketingSite({
               <div className="flex flex-wrap items-end justify-between gap-6">
                 <div className="max-w-xl">
                   <p className="text-xs font-medium text-[#4ADE80]">
-                    Annual Billing · Nigeria First &amp; Global
+                    Flexible Monthly &amp; Annual Plans · Nigeria First &amp; Global
                   </p>
                   <h2 className="mt-3 font-display text-2xl font-bold tracking-tight text-[#F4F7F4] sm:text-4xl text-balance">
-                    Simple yearly plans built to scale.
+                    Pay monthly or save more on longer terms.
                   </h2>
                   <p className="mt-2 text-sm text-[#9AA69D]">
-                    Test everything free in Sandbox first. Switch to annual production sending when
-                    your customers are ready.
+                    Choose 1, 2, 3, or a custom number of months — or save up to 33% when you bill
+                    yearly.
                   </p>
                 </div>
 
@@ -1068,6 +1081,225 @@ export function MarketingSite({
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {page === 'about' && (
+          <div className="mx-auto max-w-6xl border-x border-white/[0.06]">
+            {/* About Hero */}
+            <section className="border-b border-white/[0.06] px-6 py-16 sm:px-10 lg:py-20">
+              <div className="max-w-3xl">
+                <p className="text-xs font-medium text-[#4ADE80]">About Sendnaro</p>
+                <h1 className="mt-3 font-display text-3xl font-bold tracking-tight text-[#F4F7F4] sm:text-5xl text-balance">
+                  Built to make WhatsApp receipts and phone verification effortless for modern businesses.
+                </h1>
+                <p className="mt-5 text-base leading-relaxed text-[#9AA69D]">
+                  Sendnaro is a transactional messaging and verification platform designed for
+                  businesses in Nigeria and across the globe. Instead of juggling separate SMS
+                  gateways, manual PDF invoices, and brittle webhook scripts, Sendnaro gives your
+                  website or app one clean API to verify users via WhatsApp and automatically
+                  deliver payment receipts the moment an order is paid.
+                </p>
+              </div>
+            </section>
+
+            {/* The Two Core Pillars */}
+            <section className="border-b border-white/[0.06] bg-[#070A08] px-6 py-16 sm:px-10">
+              <div className="max-w-2xl">
+                <p className="text-xs font-medium text-[#4ADE80]">What Sendnaro Does</p>
+                <h2 className="mt-2 font-display text-2xl font-bold tracking-tight text-[#F4F7F4] sm:text-3xl">
+                  Two essential customer workflows in one platform
+                </h2>
+              </div>
+
+              <div className="mt-10 grid gap-6 md:grid-cols-2">
+                <div className="rounded-2xl border border-white/[0.08] bg-[#0B0F0C] p-7">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#22C55E]/30 bg-[#22C55E]/10 text-[#4ADE80]">
+                    <KeyRound className="h-5 w-5" />
+                  </span>
+                  <h3 className="mt-5 font-display text-xl font-semibold text-[#F4F7F4]">
+                    1. WhatsApp Phone Number Verification (OTP)
+                  </h3>
+                  <p className="mt-3 text-sm leading-relaxed text-[#9AA69D]">
+                    SMS delivery can be slow, unreliable, and expensive per message. With Sendnaro,
+                    your signup, login, and checkout forms let customers{' '}
+                    <strong className="text-[#F4F7F4]">use their phone number to verify</strong>{' '}
+                    directly on WhatsApp — where they already spend their day.
+                  </p>
+                  <ul className="mt-5 space-y-2.5 border-t border-white/[0.07] pt-5 text-xs text-[#C2CEC5]">
+                    <li className="flex items-start gap-2.5">
+                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
+                      <span>Instant 6-digit codes with configurable expiry windows</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
+                      <span>Single-use verification with automatic brute-force protection</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
+                      <span>Codes are never exposed in logs or stored in plaintext</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="rounded-2xl border border-white/[0.08] bg-[#0B0F0C] p-7">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#22C55E]/30 bg-[#22C55E]/10 text-[#4ADE80]">
+                    <FileText className="h-5 w-5" />
+                  </span>
+                  <h3 className="mt-5 font-display text-xl font-semibold text-[#F4F7F4]">
+                    2. Automated Payment Invoices &amp; Order Alerts
+                  </h3>
+                  <p className="mt-3 text-sm leading-relaxed text-[#9AA69D]">
+                    The moment a customer completes payment on your site, Sendnaro calculates exact
+                    line items, taxes, and discounts in NGN, USD, GBP, or EUR and dispatches a clean
+                    receipt plus a shareable receipt link straight to their WhatsApp or Telegram.
+                  </p>
+                  <ul className="mt-5 space-y-2.5 border-t border-white/[0.07] pt-5 text-xs text-[#C2CEC5]">
+                    <li className="flex items-start gap-2.5">
+                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
+                      <span>Exact minor-unit totals with zero rounding errors</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
+                      <span>Idempotency protection ensures no customer gets billed or messaged twice</span>
+                    </li>
+                    <li className="flex items-start gap-2.5">
+                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#22C55E]" />
+                      <span>Hosted customer receipt page and downloadable summary included</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+
+            {/* End-to-End System Flow */}
+            <section className="border-b border-white/[0.06] px-6 py-16 sm:px-10">
+              <div className="max-w-2xl">
+                <p className="text-xs font-medium text-[#4ADE80]">How The System Works</p>
+                <h2 className="mt-2 font-display text-2xl font-bold tracking-tight text-[#F4F7F4] sm:text-3xl">
+                  From checkout or sign-up to verified WhatsApp delivery
+                </h2>
+                <p className="mt-2 text-sm text-[#9AA69D]">
+                  Every business workspace is strictly isolated with its own API keys, channel
+                  credentials, link allowlist, and delivery history.
+                </p>
+              </div>
+
+              <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                {[
+                  {
+                    step: '01',
+                    title: 'Create your business',
+                    body: 'Register your company, select your country (Nigeria for NGN annual plans or international for USD Global Pro), and receive your initial Sandbox key.',
+                  },
+                  {
+                    step: '02',
+                    title: 'Test safely in Sandbox',
+                    body: 'Use your sn_test_ key to build and verify invoices, OTP flows, retries, and webhook verification without sending real messages to customers.',
+                  },
+                  {
+                    step: '03',
+                    title: 'Connect Meta WhatsApp',
+                    body: 'Add your Meta WhatsApp Business Phone Number ID and System User Access Token in Settings. Credentials are encrypted at rest.',
+                  },
+                  {
+                    step: '04',
+                    title: 'Go live & track everything',
+                    body: 'Switch to your sn_live_ API key. Every invoice, OTP, and shipping alert is tracked in Deliveries with signed webhook callbacks to your server.',
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.step}
+                    className="rounded-2xl border border-white/[0.08] bg-[#0B0F0C] p-6"
+                  >
+                    <span className="font-mono text-xs font-semibold text-[#4ADE80]">
+                      STEP {item.step}
+                    </span>
+                    <h3 className="mt-3 font-display text-base font-semibold text-[#F4F7F4]">
+                      {item.title}
+                    </h3>
+                    <p className="mt-2 text-xs leading-relaxed text-[#9AA69D]">{item.body}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Built for Nigeria First, Ready for Global Scale */}
+            <section className="border-b border-white/[0.06] bg-[#070A08] px-6 py-16 sm:px-10">
+              <div className="grid gap-10 lg:grid-cols-12 lg:items-center">
+                <div className="lg:col-span-7 space-y-4">
+                  <p className="text-xs font-medium text-[#4ADE80]">Predictable Annual Plans</p>
+                  <h2 className="font-display text-2xl font-bold tracking-tight text-[#F4F7F4] sm:text-3xl">
+                    Built for Nigerian businesses first, ready for teams worldwide.
+                  </h2>
+                  <p className="text-sm leading-relaxed text-[#9AA69D]">
+                    Most messaging platforms charge confusing per-message markups that punish your
+                    business as you grow. Sendnaro uses simple, transparent yearly plans — starting
+                    at <strong className="text-[#F4F7F4]">₦60,000/year</strong> (Starter) and{' '}
+                    <strong className="text-[#F4F7F4]">₦100,000/year</strong> (Growth, unlimited
+                    for 1 full year) for Nigerian businesses, and{' '}
+                    <strong className="text-[#F4F7F4]">$200/year</strong> (Global Pro, unlimited)
+                    for international companies.
+                  </p>
+                  <p className="text-sm leading-relaxed text-[#9AA69D]">
+                    Whether you run an online store, logistics company, SaaS product, or fintech
+                    checkout, your customers receive fast, trusted WhatsApp messages under your own
+                    verified business identity.
+                  </p>
+                </div>
+
+                <div className="lg:col-span-5 rounded-2xl border border-white/[0.08] bg-[#0B0F0C] p-6 space-y-4">
+                  <h3 className="font-display text-base font-semibold text-[#F4F7F4]">
+                    Ideal for teams building
+                  </h3>
+                  <ul className="space-y-3 text-xs text-[#C2CEC5]">
+                    {[
+                      'E-commerce stores sending instant WhatsApp payment receipts',
+                      'Fintech & web apps verifying new users by phone number',
+                      'Logistics & courier platforms sending live dispatch updates',
+                      'Service businesses automating client invoicing without manual PDFs',
+                    ].map((line) => (
+                      <li key={line} className="flex items-start gap-2.5">
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#22C55E]" />
+                        <span>{line}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </section>
+
+            {/* Bottom CTA */}
+            <section className="px-6 py-16 sm:px-10">
+              <div className="rounded-2xl border border-[#22C55E]/25 bg-[radial-gradient(ellipse_at_top,rgba(34,197,94,0.10),#0B0F0C_65%)] p-8 flex flex-wrap items-center justify-between gap-6">
+                <div className="max-w-xl">
+                  <h2 className="font-display text-xl font-bold text-[#F4F7F4] sm:text-2xl">
+                    Ready to automate your WhatsApp invoices and OTPs?
+                  </h2>
+                  <p className="mt-2 text-sm text-[#9AA69D]">
+                    Create your business account in under a minute and explore the Sandbox API for
+                    free.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={isAuthenticated ? onOpenConsole : onOpenRegister}
+                    className="inline-flex items-center gap-2 rounded-full bg-[#22C55E] px-6 py-3 text-xs font-semibold text-[#050705] hover:bg-[#16A34A] whitespace-nowrap"
+                  >
+                    {isAuthenticated ? 'Open Console' : 'Create Free Account'}
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('docs')}
+                    className="rounded-full border border-white/15 bg-white/[0.04] px-5 py-3 text-xs font-semibold text-[#F4F7F4] hover:border-white/30 hover:bg-white/[0.08] whitespace-nowrap"
+                  >
+                    Explore API Docs
+                  </button>
                 </div>
               </div>
             </section>
@@ -1175,14 +1407,14 @@ export function MarketingSite({
             <div className="flex flex-wrap items-end justify-between gap-6">
               <div className="max-w-2xl">
                 <p className="text-xs font-medium text-[#4ADE80]">
-                  Annual Billing · Nigeria First &amp; Global
+                  Flexible Monthly &amp; Annual Billing · Nigeria First &amp; Global
                 </p>
                 <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-[#F4F7F4]">
-                  Simple annual plans for invoices &amp; WhatsApp verification.
+                  Pay for 1, 2, 3, custom months — or save big yearly.
                 </h1>
                 <p className="mt-3 text-sm leading-relaxed text-[#9AA69D]">
-                  Start in Sandbox for free forever. Upgrade to annual production sending when you
-                  are ready to launch, or activate a 1-week company giveaway trial.
+                  Start in Sandbox for free. Choose a short monthly term to get moving quickly, or
+                  prepay multiple months or a full year to lock in a lower monthly rate.
                 </p>
               </div>
 
@@ -1219,20 +1451,20 @@ export function MarketingSite({
                 </span>
                 <div>
                   <h2 className="font-display text-sm font-semibold text-[#F4F7F4]">
-                    Running a company trial or giveaway?
+                    Want a 7-day complimentary trial for your business?
                   </h2>
                   <p className="mt-0.5 text-xs text-[#9AA69D]">
-                    Platform Admins can issue 1-week complimentary live entitlements directly from
-                    the Admin console.
+                    Reach out to our team via Support to request a 1-week live trial before
+                    committing to an annual plan.
                   </p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={isAuthenticated ? onOpenConsole : onOpenRegister}
+                onClick={() => onNavigate('support')}
                 className="rounded-full border border-white/15 bg-white/[0.04] px-5 py-2 text-xs font-semibold text-[#F4F7F4] hover:border-white/30 hover:bg-white/[0.08] whitespace-nowrap"
               >
-                Create Business Account
+                Request Trial
               </button>
             </div>
           </section>
@@ -1241,42 +1473,41 @@ export function MarketingSite({
         {page === 'security' && (
           <section className="mx-auto max-w-6xl border-x border-white/[0.06] px-6 py-16 sm:px-10 space-y-10">
             <div className="max-w-2xl">
-              <p className="text-xs font-medium text-[#4ADE80]">Security Architecture</p>
+              <p className="text-xs font-medium text-[#4ADE80]">Security &amp; Trust</p>
               <h1 className="mt-2 font-display text-3xl font-bold tracking-tight text-[#F4F7F4]">
-                Defense-in-depth across every trust boundary
+                Built to protect your business credentials and customer messages
               </h1>
               <p className="mt-3 text-sm leading-relaxed text-[#9AA69D]">
-                Every control listed below is enforced directly in the Sendnaro server runtime —
-                from key hashing and constant-time comparisons to SSRF blocking and fail-closed
-                provider callbacks.
+                Sendnaro enforces strict tenant isolation, strong encryption, and verified message
+                signing so your invoices and OTP codes stay private and tamper-proof.
               </p>
             </div>
 
             <div className="grid gap-5 md:grid-cols-2">
               {[
                 {
-                  title: '256-bit Scoped API Keys',
-                  body: 'Generated from CSPRNG entropy and stored exclusively as SHA-256 digests. Prefixes (sn_test_, sn_live_) are validated against stored environment records and never trusted alone.',
+                  title: 'Scoped & Hashed API Keys',
+                  body: 'Every Sandbox (sn_test_) and Live (sn_live_) API key is hashed before storage, scoped to specific permissions, and displayed only once at creation.',
                 },
                 {
-                  title: 'Unstored HMAC-SHA256 OTPs',
-                  body: 'OTP challenges store only a 256-bit seed. Codes are computed transiently via HMAC-SHA256 with server-held OTP_HMAC_KEY, verified in constant time, and capped at 5 attempts.',
+                  title: 'Protected WhatsApp OTP Verification',
+                  body: 'Verification codes are generated dynamically without plaintext storage, expire automatically, and enforce strict attempt limits to block brute-force attacks.',
                 },
                 {
-                  title: 'Fail-Closed Provider Webhooks',
-                  body: 'WhatsApp & Telegram inbound hooks reject requests whenever verify tokens or app secrets are unset, compare tokens with timingSafeEqual, and echo challenges strictly as text/plain with nosniff.',
+                  title: 'Verified Provider Callbacks',
+                  body: 'Inbound WhatsApp and Telegram delivery receipts are cryptographically verified before updating any delivery status in your workspace.',
                 },
                 {
-                  title: 'SSRF-Hardened Outbound Webhooks',
-                  body: 'Every registered endpoint is validated for HTTPS, no embedded credentials, and blocked against RFC 1918, loopback, link-local metadata, IPv6 private, and IPv4-mapped IPv6 ranges.',
+                  title: 'Signed Outbound Webhooks',
+                  body: 'Every webhook event sent to your server includes a timestamped HMAC-SHA256 signature header over HTTPS so your backend can verify authenticity and prevent replay.',
                 },
                 {
-                  title: 'AES-256-GCM Credentials at Rest',
-                  body: 'Channel tokens and webhook signing secrets are encrypted using unique 96-bit IVs and authenticated GCM tags. Secrets are never returned by read endpoints.',
+                  title: 'Encrypted Channel Credentials',
+                  body: 'Your Meta WhatsApp access tokens, Telegram bot tokens, and webhook secrets are encrypted at rest and never exposed in dashboard or API reads.',
                 },
                 {
-                  title: 'Anti-Phishing Link Allowlist & Safe Downloads',
-                  body: 'Transactional notifications enforce a 300-char limit and verify every embedded domain against the business allowlist. Receipt downloads sanitize Content-Disposition filenames and confine storage paths.',
+                  title: 'Anti-Phishing Link Controls',
+                  body: 'Define your approved business domains in Settings so transactional alerts can only include links belonging to your verified websites.',
                 },
               ].map((item) => (
                 <div
