@@ -27,7 +27,16 @@ import {
   type BillingPreset,
 } from '../lib/pricing';
 
-export type MarketingPage = 'home' | 'about' | 'docs' | 'pricing' | 'security' | 'support';
+export type MarketingPage =
+  | 'home'
+  | 'about'
+  | 'docs'
+  | 'pricing'
+  | 'security'
+  | 'support'
+  | 'privacy'
+  | 'terms'
+  | 'data-deletion';
 
 interface PlatformState {
   billingRequired: boolean;
@@ -1638,6 +1647,237 @@ export function MarketingSite({
             </div>
           </section>
         )}
+
+        {/* =============================================================== */}
+        {/* PRIVACY POLICY (/privacy)                                       */}
+        {/* =============================================================== */}
+        {page === 'privacy' && (
+          <section className="mx-auto max-w-4xl border-x border-white/[0.06] px-6 py-20 space-y-8">
+            <div>
+              <p className="font-mono text-xs uppercase tracking-[0.16em] text-[#4ADE80]">
+                Legal · Effective November 2026
+              </p>
+              <h1 className="mt-3 font-display text-3xl font-bold tracking-tight text-[#F4F7F4] sm:text-4xl">
+                Sendnaro Privacy Policy
+              </h1>
+              <p className="mt-3 text-sm leading-relaxed text-[#9AA69D]">
+                Sendnaro provides business messaging APIs for automated WhatsApp invoices, receipts,
+                phone number verification (OTP), and transactional notifications. This Privacy
+                Policy explains what data we collect, how we process and protect it, and how you can
+                request deletion.
+              </p>
+            </div>
+
+            <div className="space-y-6 rounded-2xl border border-white/[0.08] bg-[#0B0F0C] p-7 text-sm leading-relaxed text-[#C2CEC5]">
+              <div>
+                <h2 className="font-display text-base font-semibold text-[#F4F7F4]">
+                  1. Information We Collect
+                </h2>
+                <ul className="mt-2 list-disc space-y-1.5 pl-5 text-[#9AA69D]">
+                  <li>
+                    <strong className="text-[#E1EBE3]">Account &amp; Workspace Data:</strong>{' '}
+                    Business name, contact email address, country/currency settings, and hashed
+                    authentication credentials.
+                  </li>
+                  <li>
+                    <strong className="text-[#E1EBE3]">Messaging &amp; Delivery Metadata:</strong>{' '}
+                    Recipient phone numbers (or Telegram chat IDs), invoice/order references,
+                    delivery status events (sent, delivered, read, failed), and timestamps needed to
+                    deliver transactional messages on behalf of our business customers.
+                  </li>
+                  <li>
+                    <strong className="text-[#E1EBE3]">Channel Credentials:</strong> Meta WhatsApp
+                    Cloud API Phone Number IDs, access tokens, and webhook signing secrets, stored
+                    encrypted at rest using AES-256-GCM.
+                  </li>
+                </ul>
+              </div>
+
+              <div>
+                <h2 className="font-display text-base font-semibold text-[#F4F7F4]">
+                  2. How We Use Information
+                </h2>
+                <p className="mt-2 text-[#9AA69D]">
+                  We use collected data strictly to deliver business-initiated invoices, payment
+                  receipts, one-time verification codes (OTP), and order status updates via Meta
+                  WhatsApp Cloud API and Telegram, maintain delivery logs, prevent fraud and abuse,
+                  and provide customer support. We never sell personal data or phone numbers to
+                  third parties and never use customer messaging data for advertising.
+                </p>
+              </div>
+
+              <div>
+                <h2 className="font-display text-base font-semibold text-[#F4F7F4]">
+                  3. Security &amp; Data Protection
+                </h2>
+                <p className="mt-2 text-[#9AA69D]">
+                  All traffic is encrypted in transit over HTTPS/TLS. API keys are stored as
+                  one-way cryptographic hashes, user passwords are salted and hashed with scrypt,
+                  one-time verification codes are never stored in plaintext, and WhatsApp channel
+                  tokens are encrypted at rest with AES-256-GCM. Inbound Meta webhooks are verified
+                  using HMAC-SHA256 signatures.
+                </p>
+              </div>
+
+              <div>
+                <h2 className="font-display text-base font-semibold text-[#F4F7F4]">
+                  4. Third-Party Subprocessors
+                </h2>
+                <p className="mt-2 text-[#9AA69D]">
+                  To transmit messages you instruct us to send, delivery payloads are passed to the
+                  messaging channel you configure — specifically Meta Platforms, Inc. (WhatsApp
+                  Cloud API) or Telegram. Billing payments are processed by authorized payment
+                  providers (such as Paystack).
+                </p>
+              </div>
+
+              <div>
+                <h2 className="font-display text-base font-semibold text-[#F4F7F4]">
+                  5. Data Retention &amp; Deletion
+                </h2>
+                <p className="mt-2 text-[#9AA69D]">
+                  Workspace records and delivery logs are retained only while your account is active
+                  or as required for billing and compliance records. You may revoke channel tokens
+                  at any time in Console → Settings → Channels, or request full deletion of your
+                  account and associated phone numbers at{' '}
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('data-deletion')}
+                    className="text-[#4ADE80] underline hover:text-[#22C55E]"
+                  >
+                    User Data Deletion
+                  </button>
+                  .
+                </p>
+              </div>
+
+              <div>
+                <h2 className="font-display text-base font-semibold text-[#F4F7F4]">
+                  6. Contact Us
+                </h2>
+                <p className="mt-2 text-[#9AA69D]">
+                  For privacy inquiries, data export requests, or deletion requests, contact us via
+                  our{' '}
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('support')}
+                    className="text-[#4ADE80] underline hover:text-[#22C55E]"
+                  >
+                    Support page
+                  </button>{' '}
+                  or email <span className="font-mono text-[#E1EBE3]">privacy@sendnaro.com</span>.
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* =============================================================== */}
+        {/* TERMS OF SERVICE (/terms)                                       */}
+        {/* =============================================================== */}
+        {page === 'terms' && (
+          <section className="mx-auto max-w-4xl border-x border-white/[0.06] px-6 py-20 space-y-8">
+            <div>
+              <p className="font-mono text-xs uppercase tracking-[0.16em] text-[#4ADE80]">
+                Legal · Effective November 2026
+              </p>
+              <h1 className="mt-3 font-display text-3xl font-bold tracking-tight text-[#F4F7F4] sm:text-4xl">
+                Terms of Service
+              </h1>
+              <p className="mt-3 text-sm leading-relaxed text-[#9AA69D]">
+                By creating a Sendnaro account or calling the Sendnaro API, you agree to these
+                Terms of Service and all applicable WhatsApp Business Messaging Policies.
+              </p>
+            </div>
+
+            <div className="space-y-6 rounded-2xl border border-white/[0.08] bg-[#0B0F0C] p-7 text-sm leading-relaxed text-[#C2CEC5]">
+              <div>
+                <h2 className="font-display text-base font-semibold text-[#F4F7F4]">
+                  1. Acceptable Use &amp; Recipient Consent
+                </h2>
+                <p className="mt-2 text-[#9AA69D]">
+                  You may only send transactional invoices, payment receipts, OTP verification
+                  codes, and account/order updates to recipients who have provided valid consent or
+                  initiated a transaction with your business. Spam, phishing, unsolicited bulk
+                  messaging, and illegal content are strictly prohibited and result in immediate
+                  account suspension.
+                </p>
+              </div>
+              <div>
+                <h2 className="font-display text-base font-semibold text-[#F4F7F4]">
+                  2. Billing &amp; Plans
+                </h2>
+                <p className="mt-2 text-[#9AA69D]">
+                  Sandbox testing is free. Production sending requires an active Starter, Growth, or
+                  Global Pro subscription for your chosen duration (monthly, multi-month, or annual).
+                  Meta WhatsApp conversation fees, if applicable, are billed directly by Meta on
+                  your Meta Business account.
+                </p>
+              </div>
+              <div>
+                <h2 className="font-display text-base font-semibold text-[#F4F7F4]">
+                  3. API Credentials &amp; Security
+                </h2>
+                <p className="mt-2 text-[#9AA69D]">
+                  You are responsible for keeping your Sendnaro API keys and Meta WhatsApp access
+                  tokens confidential. If you suspect a key has been compromised, rotate or revoke
+                  it immediately in Console → API Keys.
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* =============================================================== */}
+        {/* USER DATA DELETION (/data-deletion)                             */}
+        {/* =============================================================== */}
+        {page === 'data-deletion' && (
+          <section className="mx-auto max-w-4xl border-x border-white/[0.06] px-6 py-20 space-y-8">
+            <div>
+              <p className="font-mono text-xs uppercase tracking-[0.16em] text-[#4ADE80]">
+                Data Control · Sendnaro
+              </p>
+              <h1 className="mt-3 font-display text-3xl font-bold tracking-tight text-[#F4F7F4] sm:text-4xl">
+                User Data Deletion Instructions
+              </h1>
+              <p className="mt-3 text-sm leading-relaxed text-[#9AA69D]">
+                Follow these steps to remove your WhatsApp connection, phone number data, or entire
+                Sendnaro workspace at any time.
+              </p>
+            </div>
+
+            <div className="space-y-5 rounded-2xl border border-white/[0.08] bg-[#0B0F0C] p-7 text-sm leading-relaxed text-[#9AA69D]">
+              <ol className="list-decimal space-y-3 pl-5">
+                <li>
+                  <strong className="text-[#F4F7F4]">Disconnect WhatsApp immediately:</strong> Sign
+                  into Sendnaro Console → <strong className="text-[#E1EBE3]">Settings → Channels</strong>{' '}
+                  and remove or rotate your saved WhatsApp credentials. You can also revoke app
+                  access directly in your Meta Business Settings.
+                </li>
+                <li>
+                  <strong className="text-[#F4F7F4]">Request full account or phone deletion:</strong>{' '}
+                  Submit a deletion request via our{' '}
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('support')}
+                    className="text-[#4ADE80] underline hover:text-[#22C55E]"
+                  >
+                    Support form
+                  </button>{' '}
+                  or email <span className="font-mono text-[#E1EBE3]">privacy@sendnaro.com</span>{' '}
+                  with your registered business email or recipient phone number and subject{' '}
+                  <span className="font-mono text-[#E1EBE3]">Data Deletion Request</span>.
+                </li>
+                <li>
+                  <strong className="text-[#F4F7F4]">Confirmation timeline:</strong> Verified
+                  deletion requests are completed within <strong className="text-[#E1EBE3]">7 business days</strong>,
+                  permanently erasing stored credentials, workspace profiles, and message delivery
+                  logs.
+                </li>
+              </ol>
+            </div>
+          </section>
+        )}
       </main>
 
       <footer className="border-t border-white/[0.07] bg-[#050705]">
@@ -1657,6 +1897,27 @@ export function MarketingSite({
                 {item.label}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => onNavigate('privacy')}
+              className="transition-colors hover:text-[#F4F7F4]"
+            >
+              Privacy Policy
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate('terms')}
+              className="transition-colors hover:text-[#F4F7F4]"
+            >
+              Terms
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate('data-deletion')}
+              className="transition-colors hover:text-[#F4F7F4]"
+            >
+              Data Deletion
+            </button>
           </div>
         </div>
       </footer>

@@ -9,9 +9,37 @@ import { BrandMark } from './components/BrandMark';
 
 type AppView = 'marketing' | 'console' | 'receipt' | 'admin_setup';
 
+const PATH_TO_MARKETING_PAGE: Record<string, MarketingPage> = {
+  '/': 'home',
+  '/about': 'about',
+  '/docs': 'docs',
+  '/pricing': 'pricing',
+  '/security': 'security',
+  '/support': 'support',
+  '/privacy': 'privacy',
+  '/privacy-policy': 'privacy',
+  '/terms': 'terms',
+  '/data-deletion': 'data-deletion',
+};
+
+const MARKETING_PAGE_TO_PATH: Record<MarketingPage, string> = {
+  home: '/',
+  about: '/about',
+  docs: '/docs',
+  pricing: '/pricing',
+  security: '/security',
+  support: '/support',
+  privacy: '/privacy',
+  terms: '/terms',
+  'data-deletion': '/data-deletion',
+};
+
 export default function App() {
   const [view, setView] = useState<AppView>('marketing');
-  const [marketingPage, setMarketingPage] = useState<MarketingPage>('home');
+  const [marketingPage, setMarketingPage] = useState<MarketingPage>(() => {
+    const normalized = window.location.pathname.replace(/\/+$/, '') || '/';
+    return PATH_TO_MARKETING_PAGE[normalized] ?? 'home';
+  });
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState<'signin' | 'register'>('signin');
 
@@ -27,14 +55,22 @@ export default function App() {
   const [setupError, setSetupError] = useState<string | null>(null);
 
   useEffect(() => {
-    const path = window.location.pathname;
-    const receiptMatch = /^\/receipt\/([A-Za-z0-9_-]+)$/.exec(path);
-    if (receiptMatch) {
-      setReceiptToken(receiptMatch[1]!);
-      setView('receipt');
-    } else if (path === '/admin-setup') {
-      setView('admin_setup');
-    }
+    const syncFromPath = () => {
+      const path = window.location.pathname.replace(/\/+$/, '') || '/';
+      const receiptMatch = /^\/receipt\/([A-Za-z0-9_-]+)$/.exec(path);
+      if (receiptMatch) {
+        setReceiptToken(receiptMatch[1]!);
+        setView('receipt');
+      } else if (path === '/admin-setup') {
+        setView('admin_setup');
+      } else if (PATH_TO_MARKETING_PAGE[path]) {
+        setMarketingPage(PATH_TO_MARKETING_PAGE[path]!);
+        setView('marketing');
+      }
+    };
+
+    syncFromPath();
+    window.addEventListener('popstate', syncFromPath);
 
     apiRequest<{
       authenticated: boolean;
@@ -48,7 +84,19 @@ export default function App() {
         }
       }
     });
+
+    return () => window.removeEventListener('popstate', syncFromPath);
   }, []);
+
+  const navigateMarketing = (next: MarketingPage) => {
+    setMarketingPage(next);
+    setView('marketing');
+    const targetPath = MARKETING_PAGE_TO_PATH[next] || '/';
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({}, '', targetPath);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleAuthenticated = (signedInUser: SessionUser, starterKey?: string) => {
     setUser(signedInUser);
@@ -211,7 +259,7 @@ export default function App() {
     <>
       <MarketingSite
         page={marketingPage}
-        onNavigate={setMarketingPage}
+        onNavigate={navigateMarketing}
         onOpenAuth={() => openAuth('signin')}
         onOpenRegister={() => openAuth('register')}
         isAuthenticated={Boolean(user)}

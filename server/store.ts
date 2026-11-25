@@ -394,7 +394,7 @@ class SendnaroStore {
   };
 
   adminClaimed = false;
-  adminEmail = process.env.PLATFORM_ADMIN_EMAIL?.trim().toLowerCase() || 'admin@sendnaro.com';
+  adminEmail = this.getEnvAdminEmail();
 
   private invoiceCounter = 1000;
 
@@ -402,8 +402,24 @@ class SendnaroStore {
     this.seedInitialData();
   }
 
+  getEnvAdminEmail(): string {
+    return (
+      process.env.ADMIN_EMAIL?.trim().toLowerCase() ||
+      process.env.PLATFORM_ADMIN_EMAIL?.trim().toLowerCase() ||
+      'admin@sendnaro.com'
+    );
+  }
+
+  getEnvAdminPassword(): string {
+    return (
+      process.env.ADMIN_PASSWORD?.trim() ||
+      process.env.PLATFORM_ADMIN_PASSWORD?.trim() ||
+      ''
+    );
+  }
+
   hasEnvAdminPassword(): boolean {
-    return Boolean(process.env.PLATFORM_ADMIN_PASSWORD?.trim());
+    return Boolean(this.getEnvAdminPassword());
   }
 
   needsAdminClaim(): boolean {
@@ -412,14 +428,17 @@ class SendnaroStore {
 
   private seedInitialData() {
     // Production-clean boot: zero pre-seeded demo businesses, deliveries, invoices, or logs.
-    // Only bootstrap the Platform Admin account if PLATFORM_ADMIN_PASSWORD is set in env.
-    if (this.hasEnvAdminPassword()) {
+    // Bootstrap the Platform Admin account automatically when ADMIN_PASSWORD (or PLATFORM_ADMIN_PASSWORD) is set in env.
+    const envPassword = this.getEnvAdminPassword();
+    if (envPassword) {
       const now = new Date().toISOString();
+      const email = this.getEnvAdminEmail();
+      this.adminEmail = email;
       const adminUser: UserRecord = {
         id: 'usr_platform_admin',
-        email: this.adminEmail,
+        email,
         name: 'Platform Owner',
-        passwordHash: hashPassword(process.env.PLATFORM_ADMIN_PASSWORD!.trim()),
+        passwordHash: hashPassword(envPassword),
         isPlatformAdmin: true,
         emailVerified: true,
         createdAt: now,
@@ -1393,7 +1412,19 @@ class SendnaroStore {
 export const store = new SendnaroStore();
 
 export function verifyUserCredentials(email: string, password: string): UserRecord | null {
-  const user = store.findUserByEmail(email);
+  const normalized = email.trim().toLowerCase();
+  const envAdminPassword = store.getEnvAdminPassword();
+  const envAdminEmail = store.getEnvAdminEmail();
+
+  // Configured ADMIN_EMAIL / ADMIN_PASSWORD always takes precedence for Platform Admin sign-in
+  if (envAdminPassword && normalized === envAdminEmail) {
+    const existingAdmin = store.users.get('usr_platform_admin');
+    if (existingAdmin && existingAdmin.email === envAdminEmail) {
+      return verifyPassword(existingAdmin.passwordHash, password) ? existingAdmin : null;
+    }
+  }
+
+  const user = store.findUserByEmail(normalized);
   if (!user) return null;
   if (!verifyPassword(user.passwordHash, password)) return null;
   return user;

@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -83,6 +84,41 @@ async function startServer() {
         request_id: req.requestId,
       },
     });
+  });
+
+  // Serve semantic HTML directly to Meta's non-JS crawler so Privacy Policy,
+  // Terms of Service, and Data Deletion URLs validate reliably in Meta App Settings.
+  const LEGAL_BOT_PAGES: Record<string, { title: string; body: string }> = {
+    '/privacy': {
+      title: 'Privacy Policy — Sendnaro',
+      body: '<h1>Sendnaro Privacy Policy</h1><p>Sendnaro provides business messaging APIs for automated WhatsApp invoices, receipts, OTP verification, and transactional notifications. We collect business account details, recipient phone numbers required to deliver requested transactional messages, and encrypted WhatsApp Cloud API credentials (AES-256-GCM). We never sell user data or use customer messaging data for advertising. To request deletion of your account or phone number data, visit /data-deletion or email privacy@sendnaro.com.</p>',
+    },
+    '/privacy-policy': {
+      title: 'Privacy Policy — Sendnaro',
+      body: '<h1>Sendnaro Privacy Policy</h1><p>Sendnaro provides business messaging APIs for automated WhatsApp invoices, receipts, OTP verification, and transactional notifications. We collect business account details, recipient phone numbers required to deliver requested transactional messages, and encrypted WhatsApp Cloud API credentials (AES-256-GCM). We never sell user data or use customer messaging data for advertising. To request deletion of your account or phone number data, visit /data-deletion or email privacy@sendnaro.com.</p>',
+    },
+    '/terms': {
+      title: 'Terms of Service — Sendnaro',
+      body: '<h1>Sendnaro Terms of Service</h1><p>By using Sendnaro, you agree to send only consented transactional invoices, receipts, OTP codes, and account updates in compliance with WhatsApp Business Messaging Policies. Unsolicited spam or abuse is prohibited.</p>',
+    },
+    '/data-deletion': {
+      title: 'User Data Deletion — Sendnaro',
+      body: '<h1>Sendnaro User Data Deletion</h1><p>To disconnect WhatsApp credentials or delete your Sendnaro account and associated phone number data, remove your channel in Console Settings or email privacy@sendnaro.com with subject Data Deletion Request. Verified requests are completed within 7 business days.</p>',
+    },
+  };
+
+  app.get(['/privacy', '/privacy-policy', '/terms', '/data-deletion'], (req, res, next) => {
+    const ua = String(req.headers['user-agent'] || '');
+    if (/facebookexternalhit|Facebot|Meta-ExternalAgent|WhatsApp/i.test(ua)) {
+      const normalizedPath = req.path.replace(/\/+$/, '') || '/privacy';
+      const legal = LEGAL_BOT_PAGES[normalizedPath] ?? LEGAL_BOT_PAGES['/privacy']!;
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.status(200).send(
+        `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${legal.title}</title></head><body>${legal.body}</body></html>`,
+      );
+      return;
+    }
+    next();
   });
 
   const isProd = process.env.NODE_ENV === 'production';
